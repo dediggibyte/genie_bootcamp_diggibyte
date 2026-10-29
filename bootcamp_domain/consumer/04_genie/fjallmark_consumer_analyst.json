@@ -7,7 +7,7 @@
   "replaced by 01_notebooks/04_genie_agent.py."
  ],
  "_generated_by": "bootcamp_domain/tools/build_samples.py",
- "template_version": "90747f025a4e",
+ "template_version": "dc7f3fdf6d01",
  "domain": "consumer",
  "title": "Fjällmark Consumer Analyst",
  "description": "Consumer analyst for Fjällmark Consumer Goods AB (fictional). Answers questions on the DTC webshop: GMV, orders, average order value, returns, active shoppers and loyalty tiers by market. Simplified domain sample. Data: 2025-01 to 2026-09.",
@@ -133,7 +133,7 @@
     {
      "identifier": "__CATALOG__.consumer.shopper",
      "description": [
-      "Webshop shoppers: market, loyalty tier, sign-up date. Personal columns are masked."
+      "Webshop shoppers: market, loyalty tier, sign-up date. Personal columns are hidden."
      ],
      "column_configs": [
       {
@@ -234,8 +234,8 @@
       "\n",
       "PRIVACY AND GOVERNANCE\n",
       "- Never list names, e-mail addresses or other personal data; answer about people only in aggregate.\n",
-      "- Rows you cannot see and masked values ('***', NULL) are governance working as designed (Unity Catalog row\n",
-      "  filters and column masks) - say so instead of guessing.\n",
+      "- Rows you cannot see are governance working as designed (a Unity Catalog row filter that shows each user\n",
+      "  only the company codes or plants they are mapped to) - say so instead of guessing.\n",
       "\n",
       "STYLE\n",
       "- State the definition, the period and the currency you used. If a question is ambiguous, state your\n",

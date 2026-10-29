@@ -8,7 +8,7 @@ Fjällmark Consumer Goods AB.
 It is based on the `bootcamp_domain/` folder of
 [`dediggibyte/genie_bootcamp`](https://github.com/dediggibyte/genie_bootcamp). That repository holds the full
 two-hour lab: three agents, a router app, and 36 industry-model tables. This one keeps the same steps and notebooks
-but cuts each domain down to **4 tables, one row-filter key, 2 sub-domains and 3 Pages**.
+but cuts each domain down to **4 tables, one row filter, 2 sub-domains and 3 Pages**.
 
 **Start here: [`bootcamp_domain/README.md`](bootcamp_domain/README.md)**, then pick a sample:
 
@@ -23,7 +23,7 @@ but cuts each domain down to **4 tables, one row-filter key, 2 sub-domains and 3
 ```mermaid
 flowchart LR
     D["1 Data<br/>bronze, silver, gold + metric views"]
-    G["2 Governance<br/>row filter + column masks"]
+    G["2 Governance<br/>one row filter by user id"]
     GE["3 Genie<br/>one curated agent, benchmarked"]
     C["4 Context<br/>domain, sub-domains, Pages"]
     A(["Agent<br/>answers as you"])
@@ -36,7 +36,7 @@ flowchart LR
 | block | step | what is built | notebook |
 |---|---|---|---|
 | 1 Data | 1-2 | catalog, volume and CSVs; Lakeflow pipeline bronze → silver → gold; metric views | `01_setup_catalog.py`, bundle `databricks.yml` |
-| 2 Governance | 3 | Unity Catalog row filter and column masks, driven by mapping tables | `03_governance.py` |
+| 2 Governance | 3 | one Unity Catalog row filter on `company_code` (`plant_code` in manufacturing), driven by your user id and a mapping table | `03_governance.py` |
 | 3 Genie | 4 | the domain's Genie Agent from a JSON template, with benchmarks | `04_genie_agent.py` |
 | 4 Context | 5 | domain and sub-domain tags, Pages from Git, GitHub MCP in Agent mode | `05_business_context.py` |
 

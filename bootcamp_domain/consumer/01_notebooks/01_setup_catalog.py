@@ -145,7 +145,7 @@ Or ask your instructor for a managed storage location and enter it in the `manag
 # MAGIC | `bronze` | raw rows, every column a string (`bronze.<table>`) |
 # MAGIC | `silver` | typed and de-duplicated rows (`silver.<table>`) |
 # MAGIC | `consumer` | **gold**: the tables Genie and the business query, plus the metric views |
-# MAGIC | `governance` | mapping tables and policy functions (notebook 03) |
+# MAGIC | `governance` | the mapping table and the row-filter function (notebook 03) |
 
 # COMMAND ----------
 
@@ -154,7 +154,7 @@ SCHEMAS = {
     "bronze": "Bronze: raw rows exactly as delivered, every column STRING. Written by genie_consumer_pipeline.",
     "silver": "Silver: typed, cleaned and de-duplicated rows. Written by genie_consumer_pipeline.",
     SAMPLE: "Consumer (gold): webshop products, shoppers, orders and order lines of Fjällmark Consumer Goods AB, amounts in EUR. Simplified domain sample.",
-    "governance": "Governance: access-mapping tables and the row-filter / column-mask functions (notebook 03).",
+    "governance": "Governance: the access-mapping table and the row-filter function (notebook 03).",
 }
 for schema, comment in SCHEMAS.items():
     spark.sql(f"CREATE SCHEMA IF NOT EXISTS `{catalog}`.`{schema}` COMMENT {sql_str(comment)}")

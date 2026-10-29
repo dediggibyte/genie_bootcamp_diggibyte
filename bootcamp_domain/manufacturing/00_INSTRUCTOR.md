@@ -45,7 +45,7 @@ sub-domains are added under it.
 |---|---|
 | notebook 05: governed tags missing | this notebook has not run, ran as a dry run, or with a `tag_prefix` |
 | notebook 05: no permission to assign a tag | participant not in `cpg_bootcamp_participants`, or step 5 reported `ACTION` |
-| a participant still sees everything after notebook 03 | they are in `cpg_bootcamp_admins` |
+| a participant still sees everything after notebook 03 | they are in `cpg_bootcamp_admins`, or chose `ALL` |
 | everything else | the troubleshooting table of the [README](README.md) |
 
 ## 4. After the workshop

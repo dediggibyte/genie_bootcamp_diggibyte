@@ -8,11 +8,11 @@ They are a simplified rework of the `bootcamp_domain/` samples in
 [`dediggibyte/genie_bootcamp`](https://github.com/dediggibyte/genie_bootcamp/tree/main/bootcamp_domain): the same
 fictional company (Fjällmark Consumer Goods AB), the same steps and notebooks, but a much smaller data model.
 
-| sample | for whom | gold tables (rows) | metric views | row filter by | masked | Pages |
-|---|---|---|---|---|---|---|
-| [`finance/`](finance/README.md) | finance and controlling | 4 (3,000) | `net_revenue_metrics`, `receivables_metrics` | company code | customer contact e-mail | Net Revenue, Gross Margin, DSO |
-| [`consumer/`](consumer/README.md) | e-commerce, CRM | 4 (14,800) | `dtc_sales_metrics` | market (company code) | shopper e-mail, family name | GMV, Return Rate, Active Shopper |
-| [`manufacturing/`](manufacturing/README.md) | plants and operations | 4 (2,300) | `production_metrics` | plant | actual cost, supervisor | Plant, Yield, Downtime |
+| sample | for whom | gold tables (rows) | metric views | row filter on | Pages |
+|---|---|---|---|---|---|
+| [`finance/`](finance/README.md) | finance and controlling | 4 (3,000) | `net_revenue_metrics`, `receivables_metrics` | `company_code` | Net Revenue, Gross Margin, DSO |
+| [`consumer/`](consumer/README.md) | e-commerce, CRM | 4 (14,800) | `dtc_sales_metrics` | `company_code` (market) | GMV, Return Rate, Active Shopper |
+| [`manufacturing/`](manufacturing/README.md) | plants and operations | 4 (2,300) | `production_metrics` | `plant_code` | Plant, Yield, Downtime |
 
 ## What was simplified
 
@@ -21,7 +21,7 @@ fictional company (Fjällmark Consumer Goods AB), the same steps and notebooks, 
 | **dataset** | 11-16 industry-model tables per sample, 25-50 columns each, up to 17,000 rows per table, injected data-quality issues, CSVs shared from `bootcamp/data/` | **4 tables** per sample, 3-16 columns, every amount also in **EUR** (no FX joins), clean data, CSVs inside the sample (`01_data/`) |
 | **pipeline** | generated SQL, enum mapping, multi-format dates, up to 42 foreign keys | short hand-written SQL, **3-4 foreign keys** |
 | **metric views** | 6-8 industry + 1-2 curated views, model tags (`dbx_*`) | **1-2 curated views**, no model tags |
-| **governance** | several row filters (some via lookups), up to 13 masks, buddy test, ABAC, nested-policy demo | **one row-filter key**, one access table, one sensitive-readers table, **1-2 masks**, three personas, "try to break it" |
+| **governance** | several row filters (some via lookups), up to 13 masks, buddy test, ABAC, nested-policy demo | **one row filter** on one column (`company_code`, or `plant_code` for manufacturing), driven by your user id (`current_user()`) and one mapping table; no masks |
 | **domain** | 3 sub-domains from the industry model | **2 sub-domains**, read from `05_context/` |
 | **pages** | 9 per domain in `bootcamp/context/` | **3 per domain** in the sample's own `05_context/pages/` |
 | **Genie Agent** | 8-12 data sources, 7-9 benchmarks | 5 data sources, **5 benchmarks** |
@@ -37,7 +37,7 @@ with the original `cpg_<sample>_<short name>` catalogs.
 | 0 | `01_notebooks/00_instructor_setup.py`, `00_INSTRUCTOR.md` | admins, once per workshop: governed tags, domain and sub-domains, ASSIGN for participants |
 | 1 | `01_notebooks/01_setup_catalog.py` | catalog, schemas, volume; copies the CSV files from `01_data/` |
 | 2 | `databricks.yml`, `resources/`, `01_notebooks/job_tasks/` | bundle: pipeline `genie_<sample>_pipeline` and job `genie_<sample>_job` (pipeline → metric views → validate) |
-| 3 | `01_notebooks/03_governance.py` | mapping tables, row filter, column masks, personas, try to break it |
+| 3 | `01_notebooks/03_governance.py` | your user id → mapping table → one row filter on `company_code` / `plant_code` |
 | 4 | `01_notebooks/04_genie_agent.py` | creates or updates the Genie Agent, a test question, the benchmarks |
 | 5 | `01_notebooks/05_business_context.py` | domain and sub-domain tags, Bulk import prompt for the Pages, GitHub MCP |
 | - | `01_notebooks/99_cleanup.py` | removes what the sample created (dry run first) |

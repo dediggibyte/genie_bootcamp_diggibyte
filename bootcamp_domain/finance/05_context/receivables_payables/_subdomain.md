@@ -18,7 +18,7 @@ B2B trade receivables: every customer invoice since January 2025 and its status 
 | `ar_invoice` | `ar_invoice_id` | invoice, customer, billing / due / payment date, total and open amount (local and EUR), status `paid`, `open` or `disputed` |
 
 Join: `ar_invoice.company_code` → `finance.company_code`. Metric view: `<catalog>.finance.receivables_metrics`.
-Payment terms are 30 days (45 days for DE01). `customer_contact_email` is personal data and masked.
+Payment terms are 30 days (45 days for DE01). `customer_contact_email` is personal data: answer about customers only in aggregate.
 
 ## Questions this sub-domain answers
 

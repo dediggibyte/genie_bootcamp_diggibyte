@@ -2,7 +2,7 @@
 -- GOLD - domain sample `manufacturing` (simplified): the 4 tables Genie and the business query.
 -- Each materialized view carries the table and column comments (Genie reads them), a PRIMARY KEY and
 -- 4 FOREIGN KEYs in total (informational constraints: Genie and BI tools derive their joins from them).
--- Gold reads silver only; row filters and column masks are attached to gold afterwards (notebook 03).
+-- Gold reads silver only; the row filter is attached to gold afterwards (notebook 03).
 --
 -- Build order: a FOREIGN KEY needs its referenced table first, but a pipeline only orders tables by the
 -- data they read. So a query with a foreign key ends with
@@ -68,8 +68,8 @@ CREATE OR REFRESH MATERIALIZED VIEW ${catalog}.manufacturing.production_order (
   good_qty INT COMMENT 'Good units produced; NULL while in progress.',
   scrap_qty INT COMMENT 'Scrapped units; NULL while in progress.',
   planned_cost_eur DECIMAL(18,2) COMMENT 'Planned production cost, EUR.',
-  actual_cost_eur DECIMAL(18,2) COMMENT 'Actual production cost, EUR - confidential, masked.',
-  shift_supervisor STRING COMMENT 'Supervisor responsible - personal data, masked.',
+  actual_cost_eur DECIMAL(18,2) COMMENT 'Actual production cost, EUR.',
+  shift_supervisor STRING COMMENT 'Supervisor responsible - personal data, hidden from the Genie Agent.',
   CONSTRAINT pk_production_order PRIMARY KEY (production_order_id),
   CONSTRAINT fk_production_order_plant_code FOREIGN KEY (plant_code) REFERENCES ${catalog}.manufacturing.plant (plant_code),
   CONSTRAINT fk_production_order_line_code FOREIGN KEY (line_code) REFERENCES ${catalog}.manufacturing.production_line (line_code)

@@ -131,7 +131,7 @@ AS $$
     - name: actual_cost_eur
       expr: SUM(source.actual_cost_eur) FILTER (WHERE source.order_status = 'completed')
       display_name: Actual cost (EUR)
-      comment: Confidential - NULL for users who may not read production cost (column mask).
+      comment: Actual production cost of completed orders, EUR.
       synonyms: [production cost]
       format:
         type: currency
@@ -140,7 +140,7 @@ AS $$
     - name: cost_variance_eur
       expr: MEASURE(actual_cost_eur) - MEASURE(planned_cost_eur)
       display_name: Cost variance (EUR)
-      comment: Actual - planned cost of completed orders (positive = over plan). NULL when actual cost is masked.
+      comment: Actual - planned cost of completed orders (positive = over plan).
       format:
         type: currency
         currency_code: EUR

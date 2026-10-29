@@ -17,8 +17,7 @@ company) in Sweden, Norway, Denmark, Finland, Germany and the Netherlands, and t
 |---|---|
 | Business owner | Head of E-commerce (role) |
 | Gold schema | `<catalog>.consumer` - governed tag `Consumer` |
-| Row-level security | analysts see only the markets (company codes) they are mapped to (notebook 03) |
-| Personal data | `shopper.email` and `shopper.family_name` are masked |
+| Row-level security | one row filter on `company_code`: each user sees only the markets mapped to their user id (notebook 03) |
 
 ## Sub-domains
 

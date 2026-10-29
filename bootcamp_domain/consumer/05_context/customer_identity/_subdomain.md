@@ -3,7 +3,7 @@ title: Customer Identity
 domain: Consumer
 subdomain: Customer Identity
 subdomain_tag: Consumer/Customer Identity
-description: Who our shoppers are. One row per registered webshop shopper with market, Fjällmark Friends loyalty tier, sign-up date and marketing consent. Names and e-mail are personal data and masked.
+description: Who our shoppers are. One row per registered webshop shopper with market, Fjällmark Friends loyalty tier, sign-up date and marketing consent. Names and e-mail are personal data.
 tables: shopper
 metric_views:
 ---

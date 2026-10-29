@@ -27,7 +27,7 @@ A **plant** is a manufacturing site, identified by `plant_code` (`<country>-<cit
 
 1. Filter and group by `plant_code`; `plant_name` is for display.
 2. FI-TMP has no production before April 2025 - compare it year on year only from 2026.
-3. Plant and line master data is not row-filtered; production orders and downtime are (notebook 03).
+3. Plant and line master data is not row-filtered; production orders and downtime are, on `plant_code` (notebook 03).
 
 ## How to look it up (SQL)
 

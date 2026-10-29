@@ -4,32 +4,30 @@
 # environment_version = "6"
 # ///
 # MAGIC %md
-# MAGIC # 03 · Governance — who may see which market, and who may see sensitive data
+# MAGIC # 03 · Governance — you only see the markets you are allowed to see
 # MAGIC
-# MAGIC Your gold tables are built, and right now **everybody who can read them sees everything**: the orders of every market and every shopper's name and e-mail address.
-# MAGIC In this notebook you put one Unity Catalog **row filter** and 2 **column mask(s)** on the gold
-# MAGIC tables. Because the policies live *on the tables*, every consumer inherits them: SQL, dashboards, the
-# MAGIC metric views and the **Genie Agent** of notebook 04.
+# MAGIC Your gold tables are built, and right now **everybody who can read them sees everything**: the shoppers and orders of every market.
+# MAGIC In this notebook you put **one Unity Catalog row filter** on the `company_code` column of the gold
+# MAGIC tables, driven by **your user id** (`current_user()`). Because the filter lives *on the tables*, every consumer
+# MAGIC inherits it: SQL, dashboards, the metric views and the **Genie Agent** of notebook 04.
 # MAGIC
 # MAGIC | step | what |
 # MAGIC |---|---|
-# MAGIC | 1-2 | parameters, pre-flight check |
-# MAGIC | 3 | **before**: what you see without policies |
-# MAGIC | 4 | **mapping tables**: *who may see what* is data, not code |
-# MAGIC | 5 | **functions**: one row filter, the column masks |
-# MAGIC | 6 | **attach** them to the gold tables |
-# MAGIC | 7 | **after**: the same queries again, with checks |
-# MAGIC | 8 | **switch persona** by editing the mapping - the effect is immediate |
-# MAGIC | 9 | the **metric view inherits** the policies |
-# MAGIC | 10 | **try to break it** |
-# MAGIC | 11 | *(optional)* rollback, summary |
+# MAGIC | 1 | parameters: your user id and the markets you may see |
+# MAGIC | 2 | **before**: what you see without a filter |
+# MAGIC | 3 | **mapping table**: your user id → `company_code` (*who may see what* is data, not code) |
+# MAGIC | 4 | **row-filter function** `company_filter(company_code)` |
+# MAGIC | 5 | **attach** it to the `company_code` column of the gold tables |
+# MAGIC | 6 | **after**: the same query again, with checks |
+# MAGIC | 7 | the **metric view inherits** the filter |
+# MAGIC | 8 | *(optional)* rollback, summary |
 # MAGIC
 # MAGIC ▶ **How to run:** Serverless → **Run all**. Every statement is printed above its result.
 # MAGIC
-# MAGIC 🔁 **Re-running is a no-op**: mapping rows, functions and policies that are already in place are reported
-# MAGIC as `unchanged`.
+# MAGIC 🔁 **Re-running is a no-op**: the mapping row, the function and the filter are only written when missing or
+# MAGIC different. To change what you see, change the `company_code` widget and run again - no pipeline run needed.
 # MAGIC
-# MAGIC > Members of the account group `cpg_bootcamp_admins` bypass every policy. Test as a non-admin.
+# MAGIC > Members of the account group `cpg_bootcamp_admins` bypass the filter. Test as a non-admin.
 
 # COMMAND ----------
 
@@ -39,46 +37,28 @@
 # MAGIC | widget | default | meaning |
 # MAGIC |---|---|---|
 # MAGIC | `catalog` | blank = `genie_consumer_<short name>` | your catalog |
-# MAGIC | `user_email` | your login | whose access you configure |
-# MAGIC | `company_code` | `SE01` | the markets that user may see: `SE01`, `SE01,NO01,DK01` or `ALL` |
-# MAGIC | `pii_access` | `false` | `true` = that user may read shopper personal data (family name, e-mail) in clear text |
-# MAGIC | `rollback` | `false` | `true` = remove everything this notebook created at the end (**leave it `false`**) |
+# MAGIC | `company_code` | `SE01` | the markets **you** may see: `SE01`, `SE01,NO01,DK01` or `ALL` |
+# MAGIC | `rollback` | `false` | `true` = remove the filter, the function and the mapping table at the end (**leave it `false`**) |
 # MAGIC
 # MAGIC Markets (selling entities): `SE01` Sweden · `NO01` Norway · `DK01` Denmark · `FI01` Finland · `DE01` Germany and the Netherlands.
 
 # COMMAND ----------
 
-import hashlib
 import json
 import textwrap
 import unicodedata
 
-current_user = spark.sql("SELECT current_user()").first()[0]
 dbutils.widgets.text("catalog", "", "1 Catalog (blank = automatic)")
-dbutils.widgets.text("user_email", current_user, "2 User e-mail to configure")
-dbutils.widgets.text("company_code", "SE01", "3 Market(s): SE01 | SE01,NO01 | ALL")
-dbutils.widgets.dropdown("pii_access", "false", ["false", "true"], "4 May read shopper PII")
-dbutils.widgets.dropdown("rollback", "false", ["false", "true"], "5 Roll back at the end")
+dbutils.widgets.text("company_code", "SE01", "2 Market(s): SE01 | SE01,NO01 | ALL")
+dbutils.widgets.dropdown("rollback", "false", ["false", "true"], "3 Roll back at the end")
 
 SAMPLE = "consumer"
-ADMIN_GROUP = "cpg_bootcamp_admins"   # members bypass every policy (instructors)
-# mapping tables: governance.<ACCESS_TABLE>(user_email, <ACCESS_COLUMN>) and governance.<SENSITIVE_TABLE>(user_email)
-ACCESS_TABLE = "user_company_access"
-ACCESS_COLUMN = "company_code"     # the column every row-filtered table carries
-SENSITIVE_TABLE = "pii_readers"
-FILTER_FN = "market_filter"
-# gold tables that get the row filter on ACCESS_COLUMN
+ADMIN_GROUP = "cpg_bootcamp_admins"   # members bypass the filter (instructors)
+ACCESS_TABLE = "user_company_access"       # governance.<ACCESS_TABLE>(user_email, <ACCESS_COLUMN>)
+ACCESS_COLUMN = "company_code"     # the column the row filter is attached to
+FILTER_FN = "company_filter"
+# gold tables that carry ACCESS_COLUMN and get the row filter
 ROW_FILTERED = ['consumer.shopper', 'consumer.dtc_order', 'consumer.dtc_order_line']
-# (gold table, column) -> mask function
-MASKS = {('consumer.shopper', 'email'): 'mask_email', ('consumer.shopper', 'family_name'): 'mask_name'}
-# primary key of each masked table (used by the checks)
-PRIMARY_KEY = {'consumer.shopper': 'shopper_id'}
-# fictional personas: e-mail -> (values, may read sensitive data, who)
-PERSONAS = {
-    'anna.svensson@example.com': (['SE01'], False, 'Anna Svensson, sales analyst Sweden'),
-    'head.ecommerce@example.com': (['ALL'], False, 'Head of e-commerce, all markets'),
-    'crm.nordics@example.com': (['DK01', 'NO01', 'SE01'], True, 'CRM manager Nordics'),
-}
 
 
 def bundle_short_name(user_name: str) -> str:
@@ -87,18 +67,14 @@ def bundle_short_name(user_name: str) -> str:
                    for c in local)
 
 
-CATALOG = dbutils.widgets.get("catalog").strip() or f"genie_{SAMPLE}_{bundle_short_name(current_user)}"
+USER_ID = spark.sql("SELECT current_user()").first()[0]       # your user id = what the filter compares with
+CATALOG = dbutils.widgets.get("catalog").strip() or f"genie_{SAMPLE}_{bundle_short_name(USER_ID)}"
 C = f"`{CATALOG}`"
 G = f"{C}.governance"
-USER_EMAIL = dbutils.widgets.get("user_email").strip() or current_user
 ACCESS = sorted({v.strip().upper() for v in dbutils.widgets.get("company_code").split(",") if v.strip()})
-SENSITIVE = dbutils.widgets.get("pii_access") == "true"
 ROLLBACK = dbutils.widgets.get("rollback") == "true"
 CHECKS, CHANGES = [], []
-
-print(f"You are              : {current_user}")
-print(f"Catalog              : {CATALOG}")
-print(f"Configure access for : {USER_EMAIL} -> {ACCESS_COLUMN} {', '.join(ACCESS)}, sensitive data: {SENSITIVE}")
+print(f"Your user id : {USER_ID}\nCatalog      : {CATALOG}\nYou may see  : {ACCESS_COLUMN} {', '.join(ACCESS)}")
 
 
 def run(statement: str, args: dict | None = None, echo: bool = True):
@@ -116,31 +92,20 @@ def alter(table: str) -> str:
     """Gold tables are pipeline MATERIALIZED VIEWs: ALTER TABLE fails on them, ALTER MATERIALIZED VIEW works."""
     schema, name = table.split(".")
     kind = run(f"SELECT table_type FROM {C}.information_schema.tables WHERE table_schema = :s AND table_name = :t",
-               {"s": schema, "t": name}, echo=False).first()[0]
-    return f"ALTER {'MATERIALIZED VIEW' if kind == 'MATERIALIZED_VIEW' else 'TABLE'} {C}.{table}"
+               {"s": schema, "t": name}, echo=False).first()
+    if kind is None:
+        raise RuntimeError(f"{table} not found - run the bundle job genie_{SAMPLE}_job first (step 2).")
+    return f"ALTER {'MATERIALIZED VIEW' if kind[0] == 'MATERIALIZED_VIEW' else 'TABLE'} {C}.{table}"
 
-# COMMAND ----------
 
-# MAGIC %md
-# MAGIC ## 2 · Pre-flight check
-# MAGIC The governed tables must exist (job `genie_consumer_job` from step 2 has run).
-
-# COMMAND ----------
-
-have = {f"{r.table_schema}.{r.table_name}" for r in run(
-    f"SELECT table_schema, table_name FROM {C}.information_schema.tables WHERE table_schema = '{SAMPLE}'",
-    echo=False).collect()}
-missing = sorted((set(ROW_FILTERED) | {t for t, _ in MASKS}) - have)
-if missing:
-    raise RuntimeError(f"Missing gold tables {missing} - run the bundle job genie_{SAMPLE}_job first (step 2).")
 IS_ADMIN = run(f"SELECT is_account_group_member('{ADMIN_GROUP}')", echo=False).first()[0]
-print("✅ gold tables found." + ("\n⚠️ You are in cpg_bootcamp_admins: the policies do not apply to you, the "
-                                  "after-checks are skipped." if IS_ADMIN else ""))
+if IS_ADMIN:
+    print("⚠️ You are in cpg_bootcamp_admins: the filter does not apply to you, the checks are skipped.")
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 3 · Before: what can you see without policies?
+# MAGIC ## 2 · Before: what can you see without a filter?
 
 # COMMAND ----------
 
@@ -154,265 +119,115 @@ def visibility() -> dict:
     return out
 
 
-def clear_text() -> dict:
-    """(table, column) -> (rows with a value, rows where gold shows the same value as the ungoverned silver)."""
-    out = {}
-    for (t, column) in MASKS:
-        schema, name = t.split(".")
-        k = PRIMARY_KEY[t]
-        r = run(f"""SELECT count(s.{column}) AS n, count_if(g.{column} = s.{column}) AS clear
-                    FROM {C}.{t} g JOIN {C}.silver.{name} s ON s.{k} = g.{k}""", echo=False).first()
-        out[(t, column)] = (r.n, r.clear)
-    return out
-
-
-BEFORE = visibility()
-for t, (n, vals) in BEFORE.items():
+for t, (n, vals) in visibility().items():
     print(f"{t:40} {n:>7,} rows   {ACCESS_COLUMN}: {', '.join(vals)}")
-for (t, column), (n, clear) in clear_text().items():
-    print(f"{t}.{column}: {clear} of {n} values readable in clear text")
-display(run("SELECT shopper_id, given_name, family_name, email, country_code FROM __C__.consumer.shopper ORDER BY shopper_id LIMIT 5".replace("__C__", C), echo=False))
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 4 · Mapping tables: *who may see what* is data
+# MAGIC ## 3 · Mapping table: your user id → `company_code`
 # MAGIC
-# MAGIC | table | one row per |
-# MAGIC |---|---|
-# MAGIC | `governance.user_company_access` | user and market they may see (`ALL` = everything) |
-# MAGIC | `governance.pii_readers` | user who may read shopper personal data (family name, e-mail) |
-# MAGIC
-# MAGIC Three fictional personas are added as well; step 8 *becomes* one of them. Changing access later means
-# MAGIC changing a row here - no code, no pipeline run.
+# MAGIC One row per user and market they may see (`ALL` = everything). The cell makes **your** rows equal
+# MAGIC to the widget. Giving a colleague access later means inserting a row here - no code change.
 
 # COMMAND ----------
 
 run(f"""CREATE TABLE IF NOT EXISTS {G}.{ACCESS_TABLE} (
-  user_email STRING NOT NULL COMMENT 'User e-mail as current_user() returns it (compared case-insensitively)',
+  user_email STRING NOT NULL COMMENT 'User id as current_user() returns it (compared case-insensitively)',
   {ACCESS_COLUMN} STRING NOT NULL COMMENT 'company_code the user may see, or ALL'
 ) COMMENT 'Row-level access: which markets each user may see. Read by governance.{FILTER_FN}().'""")
-run(f"""CREATE TABLE IF NOT EXISTS {G}.{SENSITIVE_TABLE} (
-  user_email STRING NOT NULL COMMENT 'User e-mail as current_user() returns it (compared case-insensitively)'
-) COMMENT 'Users who may read shopper personal data (family name, e-mail) in clear text. Read by governance.can_read_sensitive().'""")
 
-
-def read_mapping() -> dict:
-    """lower(e-mail) -> [set of values, may read sensitive data]"""
-    m = {}
-    for r in run(f"SELECT lower(user_email) AS e, {ACCESS_COLUMN} AS v FROM {G}.{ACCESS_TABLE}", echo=False).collect():
-        m.setdefault(r.e, [set(), False])[0].add(r.v)
-    for r in run(f"SELECT lower(user_email) AS e FROM {G}.{SENSITIVE_TABLE}", echo=False).collect():
-        m.setdefault(r.e, [set(), False])[1] = True
-    return m
-
-
-MAPPING = read_mapping()
-
-
-def set_access(email: str, values: list, sensitive: bool) -> None:
-    """Make one user's rows equal to (values, sensitive). Writes only what differs."""
-    key = email.lower()
-    have_v, have_s = MAPPING.get(key, [set(), False])
-    if have_v == set(values) and have_s == sensitive:
-        print(f"unchanged: {email} -> {sorted(values)}, sensitive {sensitive}")
-        return
-    if have_v != set(values):
-        run(f"DELETE FROM {G}.{ACCESS_TABLE} WHERE lower(user_email) = lower(:e)", {"e": email})
-        for v in values:
-            run(f"INSERT INTO {G}.{ACCESS_TABLE} VALUES (:e, :v)", {"e": email, "v": v})
-    if have_s != sensitive:
-        run(f"DELETE FROM {G}.{SENSITIVE_TABLE} WHERE lower(user_email) = lower(:e)", {"e": email})
-        if sensitive:
-            run(f"INSERT INTO {G}.{SENSITIVE_TABLE} VALUES (:e)", {"e": email})
-    MAPPING[key] = [set(values), sensitive]
-    CHANGES.append(f"mapping {email}")
-
-
-for email, (values, sensitive, _) in PERSONAS.items():
-    set_access(email, values, sensitive)
-set_access(USER_EMAIL, ACCESS, SENSITIVE)
-display(spark.createDataFrame([(e, ", ".join(sorted(v)), s) for e, (v, s) in sorted(MAPPING.items())],
-                              f"user_email string, {ACCESS_COLUMN} string, may_read_sensitive boolean"))
+have = {r[0] for r in run(f"SELECT {ACCESS_COLUMN} FROM {G}.{ACCESS_TABLE} WHERE lower(user_email) = lower(:u)",
+                          {"u": USER_ID}, echo=False).collect()}
+if have == set(ACCESS):
+    print(f"unchanged: {USER_ID} -> {ACCESS}")
+else:
+    run(f"DELETE FROM {G}.{ACCESS_TABLE} WHERE lower(user_email) = lower(:u)", {"u": USER_ID})
+    for v in ACCESS:
+        run(f"INSERT INTO {G}.{ACCESS_TABLE} VALUES (:u, :v)", {"u": USER_ID, "v": v})
+    CHANGES.append(f"mapping {USER_ID}")
+display(run(f"SELECT * FROM {G}.{ACCESS_TABLE} ORDER BY user_email, {ACCESS_COLUMN}", echo=False))
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 5 · The functions
+# MAGIC ## 4 · The row-filter function
 # MAGIC
-# MAGIC | function | kind | returns |
-# MAGIC |---|---|---|
-# MAGIC | `is_bootcamp_admin()` | helper | TRUE for members of `cpg_bootcamp_admins` |
-# MAGIC | `can_read_sensitive()` | helper | TRUE if you are in `governance.pii_readers` |
-# MAGIC | `market_filter(company_code)` | **row filter** | TRUE if you are mapped to that value (or to `ALL`) |
-# MAGIC | `mask_email` | **column mask** on `consumer.shopper.email` | the real e-mail for sensitive readers, else `a***@domain` |
-# MAGIC | `mask_name` | **column mask** on `consumer.shopper.family_name` | the real name for sensitive readers, else the first letter (`K****`) |
+# MAGIC A row filter is a SQL function that gets the row's `company_code` and returns TRUE when the row may be
+# MAGIC shown: when **your user id** (`current_user()`) is mapped to that value or to `ALL`, or you are an admin.
 # MAGIC
-# MAGIC **Rule:** a policy function must not read a table that has a policy itself (Unity Catalog does not support
-# MAGIC *nested* policies). The mapping tables are therefore never governed.
+# MAGIC The mapping table itself is never filtered: a policy function must not read a table that has a policy itself.
 
 # COMMAND ----------
 
-EXISTING_FNS = {r.routine_name: (r.comment or "") for r in run(
-    f"SELECT routine_name, comment FROM {C}.information_schema.routines WHERE routine_schema = 'governance'",
-    echo=False).collect()}
-OUR_FNS = []
-
-
-def ensure_function(name: str, params: str, returns: str, comment: str, body: str) -> None:
-    """CREATE OR REPLACE only when missing or changed (a fingerprint of the definition sits in the comment)."""
-    OUR_FNS.append(name)
-    fp = hashlib.sha1("|".join((params, returns, body)).encode()).hexdigest()[:10]
-    if EXISTING_FNS.get(name, "").endswith(f"[def {fp}]"):
-        print(f"unchanged: function governance.{name}")
-        return
-    run(f"CREATE OR REPLACE FUNCTION {G}.{name}({params}) RETURNS {returns}\n"
-        f"COMMENT '{comment} [def {fp}]'\nRETURN {textwrap.dedent(body).strip()}")
-    CHANGES.append(f"function {name}")
-
-
-ensure_function("is_bootcamp_admin", "", "BOOLEAN", f"TRUE for members of {ADMIN_GROUP}.",
-                f"is_account_group_member('{ADMIN_GROUP}')")
-ensure_function("can_read_sensitive", "", "BOOLEAN", f"TRUE if the current user is in governance.{SENSITIVE_TABLE}.",
-                f"""{G}.is_bootcamp_admin()
-                    OR EXISTS (SELECT 1 FROM {G}.{SENSITIVE_TABLE} r WHERE lower(r.user_email) = lower(current_user()))""")
-ensure_function(FILTER_FN, f"{ACCESS_COLUMN} STRING", "BOOLEAN",
-                f"Row filter: TRUE if the current user may see this {ACCESS_COLUMN} (governance.{ACCESS_TABLE}).",
-                f"""{G}.is_bootcamp_admin()
-                    OR EXISTS (SELECT 1 FROM {G}.{ACCESS_TABLE} a
-                               WHERE lower(a.user_email) = lower(current_user())
-                                 AND a.{ACCESS_COLUMN} IN ('ALL', {FILTER_FN}.{ACCESS_COLUMN}))""")
-MASK_FUNCTIONS = {
-    "mask_email": ("email STRING", "STRING", "Column mask: clear text for sensitive readers, else a***@domain.",
-                   f"CASE WHEN {G}.can_read_sensitive() OR email IS NULL THEN email "
-                   f"ELSE concat(left(email, 1), '***@', substring_index(email, '@', -1)) END"),
-    "mask_name": ("name STRING", "STRING", "Column mask: clear text for sensitive readers, else the first letter.",
-                  f"CASE WHEN {G}.can_read_sensitive() OR name IS NULL THEN name ELSE concat(left(name, 1), '****') END"),
-    "mask_amount": ("amount DECIMAL(18,2)", "DECIMAL(18,2)", "Column mask: clear amount for sensitive readers, else NULL.",
-                    f"CASE WHEN {G}.can_read_sensitive() THEN amount ELSE CAST(NULL AS DECIMAL(18,2)) END"),
-}
-for fn in sorted(set(MASKS.values())):
-    ensure_function(fn, *MASK_FUNCTIONS[fn])
-
-display(run(f"SELECT {G}.can_read_sensitive() AS i_may_read_sensitive", echo=False))
+BODY = f"""is_account_group_member('{ADMIN_GROUP}')
+  OR EXISTS (SELECT 1 FROM {G}.{ACCESS_TABLE} a
+             WHERE lower(a.user_email) = lower(current_user())
+               AND a.{ACCESS_COLUMN} IN ('ALL', {FILTER_FN}.{ACCESS_COLUMN}))"""
+exists = run(f"SELECT count(*) FROM {C}.information_schema.routines "
+             f"WHERE routine_schema = 'governance' AND routine_name = '{FILTER_FN}'", echo=False).first()[0] > 0
+if exists:
+    print(f"unchanged: function governance.{FILTER_FN}")
+else:
+    run(f"""CREATE FUNCTION {G}.{FILTER_FN}({ACCESS_COLUMN} STRING) RETURNS BOOLEAN
+COMMENT 'Row filter: TRUE if the current user may see this {ACCESS_COLUMN} (governance.{ACCESS_TABLE}).'
+RETURN {BODY}""")
+    CHANGES.append(f"function {FILTER_FN}")
+display(run(f"SELECT v AS {ACCESS_COLUMN}, {G}.{FILTER_FN}(v) AS i_may_see_it "
+            f"FROM (SELECT DISTINCT {ACCESS_COLUMN} AS v FROM {C}.silver.{ROW_FILTERED[0].split('.')[1]}) ORDER BY v",
+            echo=False))
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 6 · Attach the policies to the gold tables
+# MAGIC ## 5 · Attach the row filter to the `company_code` column
 # MAGIC
-# MAGIC `ALTER MATERIALIZED VIEW <t> SET ROW FILTER <fn> ON (<column>)` and `... ALTER COLUMN <c> SET MASK <fn>`.
-# MAGIC The policies survive pipeline refreshes, and a change to a mapping row works immediately. Only gold gets
-# MAGIC policies: it is the serving layer. Silver stays closed - consumers never get `SELECT` on it (step 10).
+# MAGIC `ALTER MATERIALIZED VIEW <table> SET ROW FILTER governance.company_filter ON (company_code)` - the gold tables
+# MAGIC are pipeline materialized views. The filter survives pipeline refreshes, and a change to the mapping table
+# MAGIC works immediately. Only gold is filtered: it is the serving layer; consumers never get `SELECT` on silver.
 
 # COMMAND ----------
 
-FILTERS_NOW = {f"{r.table_schema}.{r.table_name}": r.filter_name.split(".")[-1].strip("`").lower()
-               for r in run(f"SELECT table_schema, table_name, filter_name FROM {C}.information_schema.row_filters",
-                            echo=False).collect()}
-MASKS_NOW = {(f"{r.table_schema}.{r.table_name}", r.column_name): r.mask_name.split(".")[-1].strip("`").lower()
-             for r in run(f"SELECT table_schema, table_name, column_name, mask_name FROM {C}.information_schema.column_masks",
-                          echo=False).collect()}
+attached_now = {f"{r.table_schema}.{r.table_name}" for r in run(
+    f"SELECT table_schema, table_name FROM {C}.information_schema.row_filters", echo=False).collect()}
 attached = []
 for t in ROW_FILTERED:
-    if FILTERS_NOW.get(t) == FILTER_FN.lower():
-        attached.append((t, "", f"row filter {FILTER_FN}", "unchanged"))
+    if t in attached_now:
+        attached.append((t, "unchanged"))
         continue
     run(f"{alter(t)} SET ROW FILTER {G}.{FILTER_FN} ON ({ACCESS_COLUMN})")
-    attached.append((t, "", f"row filter {FILTER_FN}", "attached"))
-for (t, column), fn in MASKS.items():
-    if MASKS_NOW.get((t, column)) == fn:
-        attached.append((t, column, f"mask {fn}", "unchanged"))
-        continue
-    run(f"{alter(t)} ALTER COLUMN {column} SET MASK {G}.{fn}")
-    attached.append((t, column, f"mask {fn}", "attached"))
-CHANGES += [f"{p} on {t}" for t, _, p, s in attached if s != "unchanged"]
-display(spark.createDataFrame(attached, "gold_table string, column string, policy string, result string"))
+    attached.append((t, "attached"))
+    CHANGES.append(f"row filter on {t}")
+display(spark.createDataFrame(attached, "gold_table string, row_filter string"))
+display(run(f"SELECT table_schema, table_name, filter_name, target_columns FROM {C}.information_schema.row_filters"))
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 7 · After: the same queries again
+# MAGIC ## 6 · After: the same query again
 # MAGIC
-# MAGIC You should now see exactly the markets you are mapped to - no error, the other rows simply do not exist
-# MAGIC for you - and masked values unless `pii_access = true`.
+# MAGIC You now see exactly the markets you are mapped to. No error: the other rows simply do not exist for you.
 
 # COMMAND ----------
 
-# every value that exists, read from the ungoverned silver tables (correct on a re-run, when gold is already filtered)
+# every value that exists, from the unfiltered silver tables (correct on a re-run, when gold is already filtered)
 ALL_VALUES = {t: set(run(f"SELECT collect_set({ACCESS_COLUMN}) FROM {C}.silver.{t.split('.')[1]}", echo=False).first()[0])
               for t in ROW_FILTERED}
-
-
-def expected(values: list, table: str) -> set:
-    return ALL_VALUES[table] if "ALL" in values else ALL_VALUES[table] & set(values)
-
-
-def verify(values: list, sensitive: bool, label: str) -> None:
-    after = visibility()
-    for t, (n, seen) in after.items():
-        want = expected(values, t)
-        check(f"{label}: {t} shows exactly {sorted(want)}", set(seen) == want and (n > 0) == bool(want),
-              f"{n:,} rows, {', '.join(seen) or 'none'}")
-    for (t, column), (n, clear) in clear_text().items():
-        check(f"{label}: {t}.{column} {'readable' if sensitive else 'masked'}",
-              clear == n if sensitive else clear == 0, f"{clear} of {n} values in clear text")
-
-
-if IS_ADMIN:
-    print("Admin: policies are bypassed - after-checks skipped.")
-elif USER_EMAIL.lower() == current_user.lower():
-    verify(ACCESS, SENSITIVE, "you")
-else:
-    print(f"user_email is {USER_EMAIL}, not you - the checks run as you, so they are skipped.")
-display(run("SELECT shopper_id, given_name, family_name, email, country_code FROM __C__.consumer.shopper ORDER BY shopper_id LIMIT 5".replace("__C__", C), echo=False))
+for t, (n, seen) in visibility().items():
+    want = ALL_VALUES[t] if "ALL" in ACCESS else ALL_VALUES[t] & set(ACCESS)
+    print(f"{t:40} {n:>7,} rows   {ACCESS_COLUMN}: {', '.join(seen) or 'none'}")
+    if not IS_ADMIN:
+        check(f"{t} shows exactly {sorted(want)}", set(seen) == want and (n > 0) == bool(want))
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### Inspect the policies
-# MAGIC Unity Catalog lists every attached policy in `information_schema` (and in Catalog Explorer → table → *Overview*).
-
-# COMMAND ----------
-
-display(run(f"SELECT table_schema, table_name, filter_name, target_columns FROM {C}.information_schema.row_filters"))
-display(run(f"SELECT table_schema, table_name, column_name, mask_name FROM {C}.information_schema.column_masks"))
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## 8 · Switch persona: change the mapping, not the code
+# MAGIC ## 7 · The metric view inherits the filter
 # MAGIC
-# MAGIC | persona | markets | sensitive data |
-# MAGIC |---|---|---|
-# MAGIC | Anna Svensson, sales analyst Sweden (`anna.svensson@example.com`) | SE01 | no |
-# MAGIC | Head of e-commerce, all markets (`head.ecommerce@example.com`) | ALL | no |
-# MAGIC | CRM manager Nordics (`crm.nordics@example.com`) | DK01, NO01, SE01 | yes |
-# MAGIC
-# MAGIC The cell copies the mapping of **CRM manager Nordics** to your e-mail, runs the checks again and then puts
-# MAGIC your own mapping back.
-
-# COMMAND ----------
-
-if IS_ADMIN or USER_EMAIL.lower() != current_user.lower():
-    print("Skipped (admin, or user_email is not you).")
-else:
-    p_values, p_sensitive, p_label = PERSONAS["crm.nordics@example.com"]
-    print(f"--- you are now: {p_label} ---")
-    set_access(current_user, p_values, p_sensitive)
-    try:
-        verify(p_values, p_sensitive, "persona")
-    finally:
-        set_access(current_user, ACCESS, SENSITIVE)
-        print(f"--- back to your own mapping: {ACCESS}, sensitive {SENSITIVE} ---")
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## 9 · The metric view inherits the policies
-# MAGIC
-# MAGIC A metric view reads the governed gold table **as you**, so it returns only your markets. Genie does the
+# MAGIC A metric view reads the filtered gold table **as you**, so it returns only your markets. Genie does the
 # MAGIC same: it runs every query as the person who asks. Govern once, use everywhere.
+# MAGIC
+# MAGIC Try it: set `company_code` to `ALL` (or another value) and run the notebook again - this cell changes with it.
 
 # COMMAND ----------
 
@@ -421,49 +236,17 @@ display(run("SELECT country_code, MEASURE(gmv_eur) AS gmv_eur, MEASURE(orders) A
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 10 · Try to break it
+# MAGIC ## 8 · *(optional)* Rollback, and summary
 # MAGIC
-# MAGIC | attempt | what happens | lesson |
-# MAGIC |---|---|---|
-# MAGIC | A · copy the table (`CREATE TABLE ... AS SELECT`) | the copy holds only what *you* see, masked values stay masked - but the copy has **no policy** | give consumers `SELECT` on gold, never `CREATE` on schemas they share; lineage shows every copy |
-# MAGIC | B · query silver instead of gold | you see everything - silver has no policies | silver and bronze stay closed: grant consumers only the gold schema |
-# MAGIC | C · filter on a hidden value | an empty result, no error | the row does not exist for you - nothing leaks through error messages |
-
-# COMMAND ----------
-
-first = ROW_FILTERED[0]
-copy = f"{G}.break_copy_{first.split('.')[1]}"
-run(f"CREATE OR REPLACE TABLE {copy} AS SELECT * FROM {C}.{first}")
-display(run(f"SELECT '{first} copy' AS attempt, count(*) AS n, sort_array(collect_set({ACCESS_COLUMN})) AS visible FROM {copy}"))
-print("Policies on the copy:", run(f"SELECT count(*) FROM {C}.information_schema.row_filters "
-                                   f"WHERE table_schema = 'governance'", echo=False).first()[0], "(none - the copy is ungoverned)")
-run(f"DROP TABLE {copy}")
-
-display(run(f"SELECT 'silver.{first.split('.')[1]}' AS attempt, count(*) AS n, "
-            f"sort_array(collect_set({ACCESS_COLUMN})) AS visible FROM {C}.silver.{first.split('.')[1]}"))
-
-hidden = sorted(ALL_VALUES[first] - expected(ACCESS, first))
-if hidden and not IS_ADMIN:
-    display(run(f"SELECT '{hidden[0]}' AS asked_for, count(*) AS n FROM {C}.{first} WHERE {ACCESS_COLUMN} = '{hidden[0]}'"))
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## 11 · *(optional)* Rollback, and summary
-# MAGIC
-# MAGIC With `rollback = true` the policies, the functions and the mapping tables are removed again (the data stays).
+# MAGIC With `rollback = true` the row filter, the function and the mapping table are removed again (the data stays).
 
 # COMMAND ----------
 
 if ROLLBACK:
     for t in ROW_FILTERED:
         run(f"{alter(t)} DROP ROW FILTER")
-    for (t, column) in MASKS:
-        run(f"{alter(t)} ALTER COLUMN {column} DROP MASK")
-    for fn in reversed(OUR_FNS):
-        run(f"DROP FUNCTION IF EXISTS {G}.{fn}")
-    for table in (ACCESS_TABLE, SENSITIVE_TABLE):
-        run(f"DROP TABLE IF EXISTS {G}.{table}")
+    run(f"DROP FUNCTION IF EXISTS {G}.{FILTER_FN}")
+    run(f"DROP TABLE IF EXISTS {G}.{ACCESS_TABLE}")
     left = run(f"SELECT count(*) FROM {C}.information_schema.row_filters WHERE table_schema = '{SAMPLE}'",
                echo=False).first()[0]
     check("rollback: no row filters left", left == 0, f"{left} left")
@@ -471,5 +254,5 @@ if ROLLBACK:
 display(spark.createDataFrame(CHECKS or [("no checks run", "-", "")], "check string, result string, detail string"))
 failed = [c for c in CHECKS if c[1] == "FAIL"]
 print(f"{len(CHECKS) - len(failed)} PASS, {len(failed)} FAIL; changed now: {CHANGES or 'nothing (re-run)'}")
-dbutils.notebook.exit(json.dumps({"catalog": CATALOG, "checks": len(CHECKS), "failed": len(failed),
-                                  "changes": CHANGES, "rolled_back": ROLLBACK}))
+dbutils.notebook.exit(json.dumps({"catalog": CATALOG, "user_id": USER_ID, "access": ACCESS, "checks": len(CHECKS),
+                                  "failed": len(failed), "changes": CHANGES, "rolled_back": ROLLBACK}))

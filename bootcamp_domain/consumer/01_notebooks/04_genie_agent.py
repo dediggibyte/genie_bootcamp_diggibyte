@@ -6,8 +6,8 @@
 # MAGIC %md
 # MAGIC # 04 · Your Genie Agent — the Consumer Analyst
 # MAGIC
-# MAGIC Steps 1-3 gave you **governed data**: gold tables, metric views with the official KPI definitions, a row
-# MAGIC filter and column masks. Now you put a **Genie Agent** (formerly *Genie space*) on top, so the business can
+# MAGIC Steps 1-3 gave you **governed data**: gold tables, metric views with the official KPI definitions and a row
+# MAGIC filter. Now you put a **Genie Agent** (formerly *Genie space*) on top, so the business can
 # MAGIC ask questions in plain language - and you can **prove** the answers are right with benchmarks.
 # MAGIC
 # MAGIC The agent is kept as code in `04_genie/fjallmark_consumer_analyst.json` (a serialized Genie space with
@@ -291,7 +291,7 @@ if dbutils.widgets.get("run_benchmarks") == "true":
 # MAGIC
 # MAGIC **Share:** open the agent → **Share** → a user or group → **Can run**. The viewer also needs `CAN USE` on the
 # MAGIC warehouse and `SELECT` on the gold schema `consumer` (never on bronze or silver). Their answers respect
-# MAGIC **their** row filter and masks - you configured security once, in Unity Catalog.
+# MAGIC **their** row filter - you configured security once, in Unity Catalog.
 # MAGIC
 # MAGIC **GitHub MCP (Agent mode):** the definitions behind the instructions are the Pages in
 # MAGIC `bootcamp_domain/consumer/05_context/pages/`. Open the agent → switch to **Agent** → **Configure → Sources →

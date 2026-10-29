@@ -425,8 +425,8 @@ CURRENCY
 
 PRIVACY AND GOVERNANCE
 - Never list names, e-mail addresses or other personal data; answer about people only in aggregate.
-- Rows you cannot see and masked values ('***', NULL) are governance working as designed (Unity Catalog row
-  filters and column masks) - say so instead of guessing.
+- Rows you cannot see are governance working as designed (a Unity Catalog row filter that shows each user
+  only the company codes or plants they are mapped to) - say so instead of guessing.
 
 STYLE
 - State the definition, the period and the currency you used. If a question is ambiguous, state your
@@ -542,7 +542,7 @@ ORDER BY fiscal_year""", "YTD = January-September; compare with the same months 
         "tables": [
             ("consumer.product", "The 12 webshop products with brand, category and list price (EUR).",
              [col("brand", None, True), col("category", ["product category"], True), col("product_name", ["product"], True)]),
-            ("consumer.shopper", "Webshop shoppers: market, loyalty tier, sign-up date. Personal columns are masked.",
+            ("consumer.shopper", "Webshop shoppers: market, loyalty tier, sign-up date. Personal columns are hidden.",
              [col("company_code", ["market entity"], True), col("country_code", ["country", "market"], True),
               col("email", exclude=True), col("family_name", exclude=True), col("given_name", exclude=True),
               col("loyalty_tier", ["tier", "loyalty level"], True)]),
@@ -617,7 +617,6 @@ ORDER BY gmv_eur DESC""", "Brand or product splits come from the order lines joi
   do not. Use manufacturing.production_metrics.
 - Yield = good_qty / (good_qty + scrap_qty); scrap rate = scrap_qty / (good_qty + scrap_qty); ratios of sums.
 - On time = actual_finish_date <= planned_finish_date. Downtime = SUM(downtime_event.duration_min).
-- actual_cost_eur and shift_supervisor are masked for most users (NULL / '***'): that is governance.
 - Known event: March 2026, line PL-POZ-L2 had worn filler nozzles - scrap and downtime spiked until the repair
   on 4 April 2026.""",
         "tables": [
@@ -626,7 +625,7 @@ ORDER BY gmv_eur DESC""", "Brand or product splits come from the order lines joi
             ("manufacturing.production_line", "The 12 production lines (3 per plant) with their scrap target.",
              [col("line_code", ["line"], True), col("line_name", None, True), col("plant_code", ["plant"], True)]),
             ("manufacturing.production_order", "Production orders: one product on one line; planned and actual dates, "
-             "quantities, cost (EUR, masked) and status.",
+             "quantities, cost (EUR) and status.",
              [col("brand", None, True), col("line_code", ["line"], True), col("order_status", ["status"], True),
               col("plant_code", ["plant", "site"], True), col("product_name", ["product", "SKU"], True),
               col("shift_supervisor", exclude=True)]),

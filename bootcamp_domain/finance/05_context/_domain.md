@@ -18,8 +18,7 @@ EUR**, by **company code** and **fiscal period**.
 |---|---|
 | Business owner | Group Financial Controller (role) |
 | Gold schema | `<catalog>.finance` - governed tag `Finance` |
-| Row-level security | analysts see only the company codes they are mapped to (notebook 03) |
-| Personal data | `ar_invoice.customer_contact_email` is masked |
+| Row-level security | one row filter on `company_code`: each user sees only the company codes mapped to their user id (notebook 03) |
 
 ## Sub-domains
 

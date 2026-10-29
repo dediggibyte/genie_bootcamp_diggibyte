@@ -16,8 +16,7 @@ Production of Fjällmark Consumer Goods AB (a fictional company) in four plants 
 |---|---|
 | Business owner | Chief Operating Officer (role) |
 | Gold schema | `<catalog>.manufacturing` - governed tag `Manufacturing` |
-| Row-level security | analysts see only the plants they are mapped to (notebook 03) |
-| Confidential data | `production_order.actual_cost_eur` (cost) and `shift_supervisor` (personal data) are masked |
+| Row-level security | one row filter on `plant_code`: each user sees only the plants mapped to their user id (notebook 03) |
 
 ## Sub-domains
 

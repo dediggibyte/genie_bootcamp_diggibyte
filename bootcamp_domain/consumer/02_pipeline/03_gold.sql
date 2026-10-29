@@ -2,7 +2,7 @@
 -- GOLD - domain sample `consumer` (simplified): the 4 tables Genie and the business query.
 -- Each materialized view carries the table and column comments (Genie reads them), a PRIMARY KEY and
 -- 3 FOREIGN KEYs in total (informational constraints: Genie and BI tools derive their joins from them).
--- Gold reads silver only; row filters and column masks are attached to gold afterwards (notebook 03).
+-- Gold reads silver only; the row filter is attached to gold afterwards (notebook 03).
 --
 -- Build order: a FOREIGN KEY needs its referenced table first, but a pipeline only orders tables by the
 -- data they read. So a query with a foreign key ends with
@@ -33,8 +33,8 @@ FROM ${catalog}.silver.product;
 CREATE OR REFRESH MATERIALIZED VIEW ${catalog}.consumer.shopper (
   shopper_id BIGINT NOT NULL COMMENT 'Unique id of the shopper.',
   given_name STRING COMMENT 'Given name - personal data.',
-  family_name STRING COMMENT 'Family name - personal data, masked.',
-  email STRING COMMENT 'E-mail address - personal data, masked.',
+  family_name STRING COMMENT 'Family name - personal data.',
+  email STRING COMMENT 'E-mail address - personal data.',
   country_code STRING COMMENT 'Market country: SWE, NOR, DNK, FIN, DEU, NLD.',
   company_code STRING COMMENT 'Selling entity of the market: SE01, NO01, DK01, FI01, DE01 (Germany and the Netherlands).',
   loyalty_tier STRING COMMENT 'Fjällmark Friends tier: Bronze, Silver, Gold, Platinum; NULL = not a member.',
@@ -42,7 +42,7 @@ CREATE OR REFRESH MATERIALIZED VIEW ${catalog}.consumer.shopper (
   marketing_opt_in BOOLEAN COMMENT 'TRUE if the shopper agreed to marketing e-mails.',
   CONSTRAINT pk_shopper PRIMARY KEY (shopper_id)
 )
-COMMENT 'Registered webshop shoppers with market and loyalty tier. Names and e-mail are personal data and masked.'
+COMMENT 'Registered webshop shoppers with market and loyalty tier. Names and e-mail are personal data.'
 AS SELECT
   shopper_id,
   given_name,

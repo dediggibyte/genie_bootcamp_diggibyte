@@ -2,7 +2,7 @@
 -- GOLD - domain sample `finance` (simplified): the 4 tables Genie and the business query.
 -- Each materialized view carries the table and column comments (Genie reads them), a PRIMARY KEY and
 -- 3 FOREIGN KEYs in total (informational constraints: Genie and BI tools derive their joins from them).
--- Gold reads silver only; row filters and column masks are attached to gold afterwards (notebook 03).
+-- Gold reads silver only; the row filter is attached to gold afterwards (notebook 03).
 --
 -- Build order: a FOREIGN KEY needs its referenced table first, but a pipeline only orders tables by the
 -- data they read. So a query with a foreign key ends with
@@ -85,7 +85,7 @@ CREATE OR REFRESH MATERIALIZED VIEW ${catalog}.finance.ar_invoice (
   invoice_number STRING COMMENT 'Invoice number, e.g. DE01-202606-001.',
   company_code STRING COMMENT 'Selling company code (finance.company_code).',
   customer_name STRING COMMENT 'B2B trade customer, e.g. Alpina Drogerie.',
-  customer_contact_email STRING COMMENT 'E-mail of the customer\'s contact person - personal data, masked.',
+  customer_contact_email STRING COMMENT 'E-mail of the customer\'s contact person - personal data, hidden from the Genie Agent.',
   billing_date DATE COMMENT 'Invoice date.',
   due_date DATE COMMENT 'Due date (30 days, 45 days for DE01).',
   payment_date DATE COMMENT 'Date the invoice was paid; NULL if still open.',

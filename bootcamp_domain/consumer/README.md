@@ -7,7 +7,7 @@ is the fictional Fjällmark Consumer Goods AB; all data is synthetic.
 * **The data:** the webshop in five markets (Sweden, Norway, Denmark, Finland, Germany with the Netherlands): 1,200 shoppers, their orders and order lines, every amount also in EUR. 4 tables, 14,789 rows, January 2025 to September 2026. The CSV
   files ship in [`01_data/`](01_data/).
 * **What you build:** catalog `genie_consumer_<short name>`, a bronze/silver/gold pipeline, 1
-  metric view(s), one row filter and column masks, the Fjällmark Consumer Analyst with 5 benchmarks, the `Consumer` domain tags and
+  metric view(s), one row filter on `company_code`, the Fjällmark Consumer Analyst with 5 benchmarks, the `Consumer` domain tags and
   3 Pages.
 
 Overview of all three samples: [`../README.md`](../README.md). Running it as a workshop: [`00_INSTRUCTOR.md`](00_INSTRUCTOR.md).
@@ -40,7 +40,7 @@ needs a Git credential first (user icon → Settings → Linked accounts).
 | gold table | what it holds | rows |
 |---|---|---|
 | `consumer.product` | The 12 products sold in the webshop, with brand, category and list price. | 12 |
-| `consumer.shopper` | Registered webshop shoppers with market and loyalty tier. Names and e-mail are personal data and masked. | 1,200 |
+| `consumer.shopper` | Registered webshop shoppers with market and loyalty tier. Names and e-mail are personal data. | 1,200 |
 | `consumer.dtc_order` | Webshop (DTC) orders, one row per order. Amounts are net of VAT and excl. shipping. | 4,377 |
 | `consumer.dtc_order_line` | Webshop order lines: one product per line, with quantity and amount in EUR. | 9,200 |
 
@@ -51,7 +51,7 @@ flowchart LR
     CSV["01_data/<br/>4 CSV files"] -->|"notebook 01"| VOL["landing.raw_files"]
     VOL -->|"job genie_consumer_job"| BR["bronze"] --> SI["silver"] --> GO["gold: consumer<br/>4 tables"]
     GO --> MV["metric views"]
-    GOV["notebook 03<br/>row filter, masks"] -.-> GO
+    GOV["notebook 03<br/>row filter on company_code"] -.-> GO
     GO --> AG["Fjällmark Consumer Analyst<br/>notebook 04"]
     MV --> AG
     CTX["05_context/<br/>domain, sub-domains, Pages"] -->|"notebook 05"| AG
@@ -94,39 +94,26 @@ shows *"FAILED unexpectedly"* while it registers the foreign keys, the automatic
 
 ## Step 3: Governance
 
-Right now everyone who can read your gold tables sees everything. Open
+Right now everyone who can read your gold tables sees every market. Open
 [`01_notebooks/03_governance.py`](01_notebooks/03_governance.py), keep the defaults and click **Run all**.
+
+The notebook takes **your user id** (`current_user()`), writes it with the markets you may see into the
+mapping table `governance.user_company_access`, and attaches **one row filter**, `governance.company_filter`, to the
+`company_code` column of `consumer.shopper`, `consumer.dtc_order`, `consumer.dtc_order_line`. Nothing else is filtered or masked.
 
 | widget | default | meaning |
 |---|---|---|
 | `catalog` | blank | your catalog |
-| `user_email` | your login | whose access you configure |
-| `company_code` | `SE01` | the markets you may see: `SE01`, `SE01,NO01,DK01` or `ALL` |
-| `pii_access` | `false` | `true` = you may read shopper names and e-mails |
-| `rollback` | `false` | **leave it `false`**, or your policies are removed again |
+| `company_code` | `SE01` | the markets **you** may see: `SE01`, `SE01,NO01,DK01` or `ALL` |
+| `rollback` | `false` | **leave it `false`**, or the filter is removed again |
 
-| policy | on | rule |
-|---|---|---|
-| row filter | `consumer.shopper`, `consumer.dtc_order`, `consumer.dtc_order_line` | only the markets (company codes) mapped to you in `governance.user_company_access` (`ALL` = every market) |
-| column masks | `consumer.shopper.email`, `consumer.shopper.family_name` | masked unless you are in `governance.pii_readers`; the e-mail keeps its domain |
+The filter is attached with `ALTER MATERIALIZED VIEW ... SET ROW FILTER ... ON (company_code)` (the gold
+tables are pipeline materialized views); the metric views and Genie inherit it. To see more or less, change the
+widget and run again - the mapping is data, not code, and no pipeline run is needed.
 
-*Who may see what* is data in the `governance` mapping tables, not code. The policies are attached with
-`ALTER MATERIALIZED VIEW ... SET ROW FILTER / SET MASK` (the gold tables are pipeline materialized views), and the
-metric views and Genie inherit them.
+**Expected result:** gold shows only your markets, all checks PASS; re-running reports `unchanged`.
 
-**Personas:** the notebook adds three fictional personas and lets you *become* one by copying its mapping to your
-e-mail - the next query shows the effect, with no pipeline run.
-
-| persona | markets | sensitive data |
-|---|---|---|
-| Anna Svensson, sales analyst Sweden | SE01 | no |
-| Head of e-commerce, all markets | ALL | no |
-| CRM manager Nordics | DK01, NO01, SE01 | yes |
-
-**Try to break it:** copy a table with `CREATE TABLE ... AS SELECT`, query silver instead of gold, ask for a hidden
-value. **Expected result:** all checks PASS; re-running reports `unchanged`.
-
-> Members of the account group `cpg_bootcamp_admins` bypass the policies. Test as a non-admin.
+> Members of the account group `cpg_bootcamp_admins` bypass the filter. Test as a non-admin.
 
 ---
 
@@ -188,7 +175,7 @@ Pages: GMV, Return Rate, Active Shopper ([`05_context/pages/`](05_context/pages/
 | Pipeline "FAILED unexpectedly" on the first run | expected once; the retry registers the keys. Never use *Full refresh* |
 | `validate` fails on foreign keys or row counts | run the job again; it loads nothing twice |
 | Notebook 03 or 04: tables missing | wait until `genie_consumer_job` is green |
-| You still see everything after notebook 03 | you are in `cpg_bootcamp_admins`, mapped to `ALL`, or `rollback = true` |
+| You still see everything after notebook 03 | you are in `cpg_bootcamp_admins`, set the widget to `ALL`, or `rollback = true` |
 | Notebook 05: governed tags missing | the instructor has not run `00_instructor_setup.py`; Pages and MCP still work |
 
 ---
@@ -196,7 +183,7 @@ Pages: GMV, Return Rate, Active Shopper ([`05_context/pages/`](05_context/pages/
 ## Cleanup
 
 1. Run [`01_notebooks/99_cleanup.py`](01_notebooks/99_cleanup.py) once: it lists what it would delete.
-2. Type your catalog name into `confirm` and **Run all** again (agent to the trash, policies, catalog).
+2. Type your catalog name into `confirm` and **Run all** again (agent to the trash, row filter, catalog).
 3. Destroy the bundle: Deployments → **Destroy**, or `databricks bundle destroy -t dev` from this folder.
 
 Account-level objects (the domain, governed tags, published Pages) are never touched.
