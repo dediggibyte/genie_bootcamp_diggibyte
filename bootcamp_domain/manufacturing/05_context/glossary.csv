@@ -1,0 +1,4 @@
+term,synonyms,domain,subdomain,short_definition,page_path,related_assets
+Plant,site; factory; production line; line,Manufacturing,Asset Configuration,"The four plants SE-LUN, SE-NKP, FI-TMP (since April 2025) and PL-POZ, each with three lines named <plant>-L<n>.",pages/plant.md,<catalog>.manufacturing.plant; <catalog>.manufacturing.production_line
+Yield,first pass yield; scrap; scrap rate; waste,Manufacturing,Batch Execution,"Good units / (good + scrap units) of completed production orders, in percent; scrap rate = 100 - yield.",pages/yield.md,<catalog>.manufacturing.production_metrics; <catalog>.manufacturing.production_order
+Downtime,stop time; line stop; stoppage,Manufacturing,Batch Execution,"Minutes a line stood still during completed production orders (downtime_event.duration_min), by reason.",pages/downtime.md,<catalog>.manufacturing.downtime_event; <catalog>.manufacturing.production_metrics

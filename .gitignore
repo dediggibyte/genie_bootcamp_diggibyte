@@ -1,0 +1,6 @@
+__pycache__/
+*.py[cod]
+.venv/
+.DS_Store
+# Declarative Automation Bundles: local deployment state (per target)
+.databricks/

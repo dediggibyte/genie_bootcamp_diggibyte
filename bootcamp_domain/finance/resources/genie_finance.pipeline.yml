@@ -1,0 +1,16 @@
+# Lakeflow Spark Declarative Pipeline: CSV landing volume -> bronze -> silver -> gold.
+resources:
+  pipelines:
+    genie_finance_pipeline:
+      name: genie_finance_pipeline (${var.catalog})
+      catalog: ${var.catalog}
+      schema: bronze            # default schema; every dataset uses a fully qualified name
+      serverless: true
+      channel: CURRENT
+      continuous: false
+      configuration:
+        catalog: ${var.catalog} # referenced as ${catalog} in 02_pipeline/*.sql
+      libraries:
+        - file: { path: ../02_pipeline/01_bronze.sql }
+        - file: { path: ../02_pipeline/02_silver.sql }
+        - file: { path: ../02_pipeline/03_gold.sql }

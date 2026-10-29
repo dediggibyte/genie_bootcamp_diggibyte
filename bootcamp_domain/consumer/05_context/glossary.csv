@@ -1,0 +1,4 @@
+term,synonyms,domain,subdomain,short_definition,page_path,related_assets
+GMV,gross merchandise value; webshop sales; order value; AOV,Consumer,Direct Sales,"Value of placed webshop orders (delivered or returned, never cancelled), net of VAT, EUR; AOV = GMV / placed orders.",pages/gmv.md,<catalog>.consumer.dtc_sales_metrics; <catalog>.consumer.dtc_order; <catalog>.consumer.dtc_order_line
+Return Rate,returns; return share,Consumer,Direct Sales,"Returned orders / placed orders (delivered + returned), in percent.",pages/return_rate.md,<catalog>.consumer.dtc_sales_metrics; <catalog>.consumer.dtc_order
+Active Shopper,active customer; buying shopper,Consumer,Customer Identity,"A shopper with at least one placed order in the last 12 months (2025-10-01 to 2026-09-30).",pages/active_shopper.md,<catalog>.consumer.dtc_sales_metrics; <catalog>.consumer.shopper

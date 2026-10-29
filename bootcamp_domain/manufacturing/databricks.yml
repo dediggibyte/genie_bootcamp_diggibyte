@@ -1,0 +1,36 @@
+# =================================================================================================
+# Genie domain sample "Manufacturing" (simplified) - Declarative Automation Bundle
+#
+#   * pipeline genie_manufacturing_pipeline - Lakeflow Spark Declarative Pipeline, bronze -> silver -> gold
+#   * job      genie_manufacturing_job      - runs the pipeline, then creates the metric views, then validates
+#
+# Workspace UI (from the Git folder): open this file -> Deployments (rocket icon) -> target "dev" -> Deploy ->
+# run "genie_manufacturing_job".
+# CLI (from this folder):
+#   databricks bundle deploy -t dev            # optionally: --var catalog=<your_catalog>
+#   databricks bundle run genie_manufacturing_job -t dev
+#
+# Run 01_notebooks/01_setup_catalog.py first (catalog, schemas, volume, CSV files). The catalog default below
+# is the same as that notebook's default.
+# =================================================================================================
+bundle:
+  name: genie_domain_lite_manufacturing
+
+include:
+  - resources/*.yml
+
+variables:
+  catalog:
+    description: >-
+      Unity Catalog catalog for every object of this sample. Default genie_manufacturing_<your short user name>,
+      e.g. genie_manufacturing_jane_doe for jane.doe@example.com (same rule as 01_notebooks/01_setup_catalog.py).
+    default: genie_manufacturing_${workspace.current_user.short_name}
+
+workspace:
+  # one deployment per catalog, so deployments into different catalogs never share state
+  root_path: ~/.bundle/${bundle.name}/${bundle.target}/${var.catalog}
+
+targets:
+  dev:
+    default: true
+    mode: development

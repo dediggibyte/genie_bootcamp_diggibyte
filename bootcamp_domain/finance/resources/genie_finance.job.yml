@@ -1,0 +1,39 @@
+# Job: pipeline -> metric_views -> validate. Serverless; the notebooks receive the job parameter catalog.
+# PERFORMANCE_OPTIMIZED: a participant waits on every run, so fast start-up matters more than cost.
+resources:
+  jobs:
+    genie_finance_job:
+      name: genie_finance_job (${var.catalog})
+      description: >-
+        Genie domain sample Finance (simplified): refresh the bronze/silver/gold pipeline, create the
+        metric views and validate the result (catalog ${var.catalog}).
+      max_concurrent_runs: 1
+      performance_target: PERFORMANCE_OPTIMIZED
+      tags:
+        project: genie_bootcamp_domain_lite
+        domain: finance
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+      tasks:
+        - task_key: pipeline
+          description: Bronze -> silver -> gold (Lakeflow Spark Declarative Pipeline)
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.genie_finance_pipeline.id}
+          # safety net for the first run of a fresh catalog (foreign keys of brand-new tables)
+          max_retries: 1
+          min_retry_interval_millis: 10000
+
+        - task_key: metric_views
+          description: Metric views in the gold schema
+          depends_on:
+            - task_key: pipeline
+          notebook_task:
+            notebook_path: ../01_notebooks/job_tasks/02a_create_metric_views.py
+
+        - task_key: validate
+          description: Gold tables, keys, row counts and metric views
+          depends_on:
+            - task_key: metric_views
+          notebook_task:
+            notebook_path: ../01_notebooks/job_tasks/02b_validate.py

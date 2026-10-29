@@ -1,0 +1,4 @@
+term,synonyms,domain,subdomain,short_definition,page_path,related_assets
+Net Revenue,revenue; net sales; sales; turnover,Finance,General Ledger,"Sum of the GL revenue accounts 3010, 3020 and 3090 (returns and trade discounts, negative) in EUR.",pages/net_revenue.md,<catalog>.finance.net_revenue_metrics; <catalog>.finance.journal_entry_line; <catalog>.finance.gl_account
+Gross Margin,gross profit; GM; gross margin %; margin,Finance,General Ledger,"Net Revenue - COGS (accounts 4000 + 4100), EUR; Gross Margin % = Gross Margin / Net Revenue, a ratio of sums.",pages/gross_margin.md,<catalog>.finance.net_revenue_metrics; <catalog>.finance.journal_entry_line
+DSO,days sales outstanding; debtor days; collection period,Finance,Receivables Payables,"Open AR at 2026-09-30 / (credit sales billed Jul-Sep 2026 / 92 days), per company code, EUR.",pages/dso.md,<catalog>.finance.receivables_metrics; <catalog>.finance.ar_invoice

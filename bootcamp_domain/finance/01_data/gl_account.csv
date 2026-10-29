@@ -1,0 +1,9 @@
+gl_account_code,account_name,account_group
+3010,Sales revenue DTC webshop,REVENUE
+3020,Sales revenue B2B trade,REVENUE
+3090,Returns and trade discounts,REVENUE
+4000,Cost of goods sold at standard,COGS
+4100,Production variances,COGS
+6000,Marketing,OPEX
+6100,Personnel,OPEX
+6200,Freight and logistics,OPEX

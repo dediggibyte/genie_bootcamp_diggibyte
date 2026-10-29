@@ -1,0 +1,7 @@
+company_code,company_name,country_code,currency_code,eur_rate,is_parent
+SE01,Fjällmark Consumer Goods AB,SWE,SEK,0.0870,true
+NO01,Fjällmark Norge AS,NOR,NOK,0.0850,false
+DK01,Fjällmark Danmark A/S,DNK,DKK,0.1340,false
+FI01,Fjällmark Suomi Oy,FIN,EUR,1.0000,false
+DE01,Fjällmark Deutschland GmbH,DEU,EUR,1.0000,false
+PL01,Fjällmark Polska Sp. z o.o.,POL,PLN,0.2320,false

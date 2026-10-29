@@ -1,0 +1,13 @@
+product_id,product_name,brand,category,unit_price_eur
+BP-CRISP,Björkö Crispbread Original,Björkö Pantry,FOOD,3.20
+BP-GRAN,Björkö Granola Nordic Berries,Björkö Pantry,FOOD,4.90
+BP-OAT,Björkö Oat Porridge,Björkö Pantry,FOOD,2.80
+BP-JAM,Björkö Lingonberry Jam,Björkö Pantry,FOOD,3.60
+KK-LEMON,Kallkälla Sparkling Lemon 6-pack,Kallkälla,BEVERAGE,7.20
+KK-ELDER,Kallkälla Sparkling Elderflower 6-pack,Kallkälla,BEVERAGE,7.20
+KK-JUICE,Kallkälla Apple Juice,Kallkälla,BEVERAGE,2.60
+KK-OAT,Kallkälla Oat Drink,Kallkälla,BEVERAGE,2.20
+MC-SHAMP,Mjuk Care Gentle Shampoo,Mjuk Care,PERSONAL_CARE,6.90
+MC-WASH,Mjuk Care Body Wash,Mjuk Care,PERSONAL_CARE,5.90
+MC-DEO,Mjuk Care Deodorant,Mjuk Care,PERSONAL_CARE,4.50
+MC-HAND,Mjuk Care Hand Cream,Mjuk Care,PERSONAL_CARE,5.50

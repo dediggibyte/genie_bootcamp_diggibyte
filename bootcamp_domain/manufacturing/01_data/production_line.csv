@@ -1,0 +1,13 @@
+line_code,plant_code,line_name,product_category,scrap_target_pct
+SE-LUN-L1,SE-LUN,Crispbread baking and wrapping,FOOD,2.5
+SE-LUN-L2,SE-LUN,Granola and muesli baking,FOOD,2.5
+SE-LUN-L3,SE-LUN,Porridge and jam packing,FOOD,2.0
+SE-NKP-L1,SE-NKP,Sparkling water filling (bottles),BEVERAGE,1.5
+SE-NKP-L2,SE-NKP,Sparkling water filling (cans),BEVERAGE,1.5
+SE-NKP-L3,SE-NKP,Juice filling,BEVERAGE,2.0
+FI-TMP-L1,FI-TMP,Oat base processing,BEVERAGE,3.0
+FI-TMP-L2,FI-TMP,Oat drink filling,BEVERAGE,2.5
+FI-TMP-L3,FI-TMP,Oat drink packing,BEVERAGE,2.0
+PL-POZ-L1,PL-POZ,Deodorant filling,PERSONAL_CARE,2.0
+PL-POZ-L2,PL-POZ,"Liquid filling (shampoo, body wash)",PERSONAL_CARE,2.0
+PL-POZ-L3,PL-POZ,Hand cream filling,PERSONAL_CARE,2.0
