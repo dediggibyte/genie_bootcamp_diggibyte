@@ -36,7 +36,7 @@
 # MAGIC
 # MAGIC | widget | default | meaning |
 # MAGIC |---|---|---|
-# MAGIC | `catalog` | blank = `genie_manufacturing_<short name>` | your catalog |
+# MAGIC | `catalog` | blank = `<your short user name>` | your catalog (already created for you) |
 # MAGIC | `plant_code` | `SE-LUN` | the plants **you** may see: `SE-LUN`, `SE-LUN,PL-POZ` or `ALL` |
 # MAGIC | `rollback` | `false` | `true` = remove the filter, the function and the mapping table at the end (**leave it `false`**) |
 # MAGIC
@@ -54,7 +54,7 @@ dbutils.widgets.dropdown("rollback", "false", ["false", "true"], "3 Roll back at
 
 SAMPLE = "manufacturing"
 ADMIN_GROUP = "cpg_bootcamp_admins"   # members bypass the filter (instructors)
-ACCESS_TABLE = "user_plant_access"       # governance.<ACCESS_TABLE>(user_email, <ACCESS_COLUMN>)
+ACCESS_TABLE = "user_plant_access"       # manufacturing_governance.<ACCESS_TABLE>(user_email, <ACCESS_COLUMN>)
 ACCESS_COLUMN = "plant_code"     # the column the row filter is attached to
 FILTER_FN = "plant_filter"
 # gold tables that carry ACCESS_COLUMN and get the row filter
@@ -68,9 +68,9 @@ def bundle_short_name(user_name: str) -> str:
 
 
 USER_ID = spark.sql("SELECT current_user()").first()[0]       # your user id = what the filter compares with
-CATALOG = dbutils.widgets.get("catalog").strip() or f"genie_{SAMPLE}_{bundle_short_name(USER_ID)}"
+CATALOG = dbutils.widgets.get("catalog").strip() or bundle_short_name(USER_ID)
 C = f"`{CATALOG}`"
-G = f"{C}.governance"
+G = f"{C}.{SAMPLE}_governance"
 ACCESS = sorted({v.strip().upper() for v in dbutils.widgets.get("plant_code").split(",") if v.strip()})
 ROLLBACK = dbutils.widgets.get("rollback") == "true"
 CHECKS, CHANGES = [], []
@@ -135,7 +135,7 @@ for t, (n, vals) in visibility().items():
 run(f"""CREATE TABLE IF NOT EXISTS {G}.{ACCESS_TABLE} (
   user_email STRING NOT NULL COMMENT 'User id as current_user() returns it (compared case-insensitively)',
   {ACCESS_COLUMN} STRING NOT NULL COMMENT 'plant_code the user may see, or ALL'
-) COMMENT 'Row-level access: which plants each user may see. Read by governance.{FILTER_FN}().'""")
+) COMMENT 'Row-level access: which plants each user may see. Read by {SAMPLE}_governance.{FILTER_FN}().'""")
 
 have = {r[0] for r in run(f"SELECT {ACCESS_COLUMN} FROM {G}.{ACCESS_TABLE} WHERE lower(user_email) = lower(:u)",
                           {"u": USER_ID}, echo=False).collect()}
@@ -165,16 +165,16 @@ BODY = f"""is_account_group_member('{ADMIN_GROUP}')
              WHERE lower(a.user_email) = lower(current_user())
                AND a.{ACCESS_COLUMN} IN ('ALL', {FILTER_FN}.{ACCESS_COLUMN}))"""
 exists = run(f"SELECT count(*) FROM {C}.information_schema.routines "
-             f"WHERE routine_schema = 'governance' AND routine_name = '{FILTER_FN}'", echo=False).first()[0] > 0
+             f"WHERE routine_schema = '{SAMPLE}_governance' AND routine_name = '{FILTER_FN}'", echo=False).first()[0] > 0
 if exists:
-    print(f"unchanged: function governance.{FILTER_FN}")
+    print(f"unchanged: function {SAMPLE}_governance.{FILTER_FN}")
 else:
     run(f"""CREATE FUNCTION {G}.{FILTER_FN}({ACCESS_COLUMN} STRING) RETURNS BOOLEAN
-COMMENT 'Row filter: TRUE if the current user may see this {ACCESS_COLUMN} (governance.{ACCESS_TABLE}).'
+COMMENT 'Row filter: TRUE if the current user may see this {ACCESS_COLUMN} ({SAMPLE}_governance.{ACCESS_TABLE}).'
 RETURN {BODY}""")
     CHANGES.append(f"function {FILTER_FN}")
 display(run(f"SELECT v AS {ACCESS_COLUMN}, {G}.{FILTER_FN}(v) AS i_may_see_it "
-            f"FROM (SELECT DISTINCT {ACCESS_COLUMN} AS v FROM {C}.silver.{ROW_FILTERED[0].split('.')[1]}) ORDER BY v",
+            f"FROM (SELECT DISTINCT {ACCESS_COLUMN} AS v FROM {C}.{SAMPLE}_silver.{ROW_FILTERED[0].split('.')[1]}) ORDER BY v",
             echo=False))
 
 # COMMAND ----------
@@ -182,7 +182,7 @@ display(run(f"SELECT v AS {ACCESS_COLUMN}, {G}.{FILTER_FN}(v) AS i_may_see_it "
 # MAGIC %md
 # MAGIC ## 5 · Attach the row filter to the `plant_code` column
 # MAGIC
-# MAGIC `ALTER MATERIALIZED VIEW <table> SET ROW FILTER governance.plant_filter ON (plant_code)` - the gold tables
+# MAGIC `ALTER MATERIALIZED VIEW <table> SET ROW FILTER manufacturing_governance.plant_filter ON (plant_code)` - the gold tables
 # MAGIC are pipeline materialized views. The filter survives pipeline refreshes, and a change to the mapping table
 # MAGIC works immediately. Only gold is filtered: it is the serving layer; consumers never get `SELECT` on silver.
 
@@ -211,7 +211,7 @@ display(run(f"SELECT table_schema, table_name, filter_name, target_columns FROM 
 # COMMAND ----------
 
 # every value that exists, from the unfiltered silver tables (correct on a re-run, when gold is already filtered)
-ALL_VALUES = {t: set(run(f"SELECT collect_set({ACCESS_COLUMN}) FROM {C}.silver.{t.split('.')[1]}", echo=False).first()[0])
+ALL_VALUES = {t: set(run(f"SELECT collect_set({ACCESS_COLUMN}) FROM {C}.{SAMPLE}_silver.{t.split('.')[1]}", echo=False).first()[0])
               for t in ROW_FILTERED}
 for t, (n, seen) in visibility().items():
     want = ALL_VALUES[t] if "ALL" in ACCESS else ALL_VALUES[t] & set(ACCESS)

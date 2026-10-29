@@ -10,8 +10,8 @@
 #   databricks bundle deploy -t dev            # optionally: --var catalog=<your_catalog>
 #   databricks bundle run genie_consumer_job -t dev
 #
-# Run 01_notebooks/01_setup_catalog.py first (catalog, schemas, volume, CSV files). The catalog default below
-# is the same as that notebook's default.
+# Run 01_notebooks/01_setup_catalog.py first (schemas, volume, CSV files in your existing catalog). The catalog
+# default below is the same as that notebook's default: your short user name.
 # =================================================================================================
 bundle:
   name: genie_domain_lite_consumer
@@ -22,9 +22,10 @@ include:
 variables:
   catalog:
     description: >-
-      Unity Catalog catalog for every object of this sample. Default genie_consumer_<your short user name>,
-      e.g. genie_consumer_jane_doe for jane.doe@example.com (same rule as 01_notebooks/01_setup_catalog.py).
-    default: genie_consumer_${workspace.current_user.short_name}
+      Your existing Unity Catalog catalog (created for you, never by this bundle). Default = your short user
+      name, e.g. labuser123_456 for labuser123_456@vocareum.com (same rule as 01_notebooks/01_setup_catalog.py).
+      The sample's schemas are consumer, consumer_landing, consumer_bronze, consumer_silver and consumer_governance.
+    default: ${workspace.current_user.short_name}
 
 workspace:
   # one deployment per catalog, so deployments into different catalogs never share state

@@ -1,7 +1,7 @@
 # Genie, Governed: simplified domain samples
 
 Three small, standalone samples of the Genie bootcamp lab, **one per business domain**. Each one is a complete
-lab for a single team: its own catalog, a bronze/silver/gold pipeline, governance, one Genie Agent and the
+lab for a single team: a bronze/silver/gold pipeline, governance, one Genie Agent and the
 business context (domain, sub-domains, Pages) of its domain.
 
 They are a simplified rework of the `bootcamp_domain/` samples in
@@ -27,20 +27,24 @@ fictional company (Fjällmark Consumer Goods AB), the same steps and notebooks, 
 | **Genie Agent** | 8-12 data sources, 7-9 benchmarks | 5 data sources, **5 benchmarks** |
 
 Sub-domain names match the original domains (for example `Finance/General Ledger`), so the samples work next to
-the full bootcamp in the same account. The catalogs are named `genie_<sample>_<short name>` so they never collide
-with the original `cpg_<sample>_<short name>` catalogs.
+the full bootcamp in the same account.
+
+**Catalogs are never created.** Every participant already has a catalog named after their user (for example
+`labuser123_456` for `labuser123_456@vocareum.com`); notebooks and bundles use it by default. Each sample only creates
+schemas that start with its name (`<sample>`, `<sample>_landing`, `<sample>_bronze`, `<sample>_silver`,
+`<sample>_governance`), so all three samples fit in the same catalog, and `99_cleanup` drops only those schemas.
 
 ## The steps (the same in every sample)
 
 | step | file | what it does |
 |---|---|---|
-| 0 | `01_notebooks/00_instructor_setup.py`, `00_INSTRUCTOR.md` | admins, once per workshop: governed tags, domain and sub-domains, ASSIGN for participants |
-| 1 | `01_notebooks/01_setup_catalog.py` | catalog, schemas, volume; copies the CSV files from `01_data/` |
+| 0 | `01_notebooks/00_instructor_setup.py`, `00_INSTRUCTOR.md` | **instructors with admin rights only**, once per workshop: governed tags, domain and sub-domains, ASSIGN for participants. Participants skip it |
+| 1 | `01_notebooks/01_setup_catalog.py` | checks your existing catalog; schemas, volume; copies the CSV files from `01_data/` |
 | 2 | `databricks.yml`, `resources/`, `01_notebooks/job_tasks/` | bundle: pipeline `genie_<sample>_pipeline` and job `genie_<sample>_job` (pipeline → metric views → validate) |
 | 3 | `01_notebooks/03_governance.py` | your user id → mapping table → one row filter on `company_code` / `plant_code` |
 | 4 | `01_notebooks/04_genie_agent.py` | creates or updates the Genie Agent, a test question, the benchmarks |
 | 5 | `01_notebooks/05_business_context.py` | domain and sub-domain tags, Bulk import prompt for the Pages, GitHub MCP |
-| - | `01_notebooks/99_cleanup.py` | removes what the sample created (dry run first) |
+| - | `01_notebooks/99_cleanup.py` | removes what the sample created: its schemas and your agent, never the catalog (dry run first) |
 
 ```text
 <sample>/

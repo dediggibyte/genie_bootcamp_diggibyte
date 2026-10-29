@@ -28,7 +28,7 @@ AS SELECT
   brand,
   category,
   unit_price_eur
-FROM ${catalog}.silver.product;
+FROM ${catalog}.consumer_silver.product;
 
 CREATE OR REFRESH MATERIALIZED VIEW ${catalog}.consumer.shopper (
   shopper_id BIGINT NOT NULL COMMENT 'Unique id of the shopper.',
@@ -53,7 +53,7 @@ AS SELECT
   loyalty_tier,
   signup_date,
   marketing_opt_in
-FROM ${catalog}.silver.shopper;
+FROM ${catalog}.consumer_silver.shopper;
 
 CREATE OR REFRESH MATERIALIZED VIEW ${catalog}.consumer.dtc_order (
   order_id BIGINT NOT NULL COMMENT 'Unique id of the order.',
@@ -83,7 +83,7 @@ AS SELECT
   order_amount_local,
   order_amount_eur,
   item_count
-FROM ${catalog}.silver.dtc_order
+FROM ${catalog}.consumer_silver.dtc_order
 -- Build order only - never filters a row.
 WHERE TRUE
    OR EXISTS (SELECT 1 FROM ${catalog}.consumer.shopper);
@@ -109,7 +109,7 @@ AS SELECT
   quantity,
   unit_price_eur,
   line_amount_eur
-FROM ${catalog}.silver.dtc_order_line
+FROM ${catalog}.consumer_silver.dtc_order_line
 -- Build order only - never filters a row.
 WHERE TRUE
    OR EXISTS (SELECT 1 FROM ${catalog}.consumer.dtc_order)

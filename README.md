@@ -35,7 +35,7 @@ flowchart LR
 
 | block | step | what is built | notebook |
 |---|---|---|---|
-| 1 Data | 1-2 | catalog, volume and CSVs; Lakeflow pipeline bronze → silver → gold; metric views | `01_setup_catalog.py`, bundle `databricks.yml` |
+| 1 Data | 1-2 | schemas, volume and CSVs in your existing catalog; Lakeflow pipeline bronze → silver → gold; metric views | `01_setup_catalog.py`, bundle `databricks.yml` |
 | 2 Governance | 3 | one Unity Catalog row filter on `company_code` (`plant_code` in manufacturing), driven by your user id and a mapping table | `03_governance.py` |
 | 3 Genie | 4 | the domain's Genie Agent from a JSON template, with benchmarks | `04_genie_agent.py` |
 | 4 Context | 5 | domain and sub-domain tags, Pages from Git, GitHub MCP in Agent mode | `05_business_context.py` |
@@ -50,7 +50,10 @@ person who asks.
 2. Open `bootcamp_domain/<sample>/01_notebooks/01_setup_catalog.py` → Serverless → **Run all**.
 3. Open `bootcamp_domain/<sample>/databricks.yml` → **Deployments** → `dev` → **Deploy**, then run `genie_<sample>_job`.
 4. Run notebooks `03_governance`, `04_genie_agent` and `05_business_context`, in that order.
-5. When you are done, run `99_cleanup`.
+5. When you are done, destroy the bundle and run `99_cleanup`.
+
+Your catalog is already created for you (named after your user, e.g. `labuser123_456`); no step creates a catalog,
+and no participant step needs admin rights. Participants skip `00_instructor_setup`.
 
 Instructors: each sample's `00_INSTRUCTOR.md` lists the workspace prerequisites and the one-time domain setup.
 

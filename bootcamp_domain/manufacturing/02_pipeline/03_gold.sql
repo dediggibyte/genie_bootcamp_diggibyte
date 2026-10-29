@@ -30,7 +30,7 @@ AS SELECT
   company_code,
   main_brand,
   commissioning_date
-FROM ${catalog}.silver.plant;
+FROM ${catalog}.manufacturing_silver.plant;
 
 CREATE OR REFRESH MATERIALIZED VIEW ${catalog}.manufacturing.production_line (
   line_code STRING NOT NULL COMMENT 'Line code, e.g. PL-POZ-L2.',
@@ -48,7 +48,7 @@ AS SELECT
   line_name,
   product_category,
   scrap_target_pct
-FROM ${catalog}.silver.production_line
+FROM ${catalog}.manufacturing_silver.production_line
 -- Build order only - never filters a row.
 WHERE TRUE
    OR EXISTS (SELECT 1 FROM ${catalog}.manufacturing.plant);
@@ -92,7 +92,7 @@ AS SELECT
   planned_cost_eur,
   actual_cost_eur,
   shift_supervisor
-FROM ${catalog}.silver.production_order
+FROM ${catalog}.manufacturing_silver.production_order
 -- Build order only - never filters a row.
 WHERE TRUE
    OR EXISTS (SELECT 1 FROM ${catalog}.manufacturing.plant)
@@ -118,7 +118,7 @@ AS SELECT
   event_date,
   reason,
   duration_min
-FROM ${catalog}.silver.downtime_event
+FROM ${catalog}.manufacturing_silver.downtime_event
 -- Build order only - never filters a row.
 WHERE TRUE
    OR EXISTS (SELECT 1 FROM ${catalog}.manufacturing.production_order);

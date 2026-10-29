@@ -1,12 +1,12 @@
 # Genie, Governed: Manufacturing sample (simplified)
 
-A small, self-contained version of the Genie bootcamp lab for **plant, operations and production-controlling teams**: one catalog, one governed
+A small, self-contained version of the Genie bootcamp lab for **plant, operations and production-controlling teams**: your catalog, one governed
 lakehouse, **one Genie Agent** (the *Fjällmark Manufacturing Analyst*) and the business context of the **Manufacturing** domain. The company
 is the fictional Fjällmark Consumer Goods AB; all data is synthetic.
 
 * **The data:** four plants (Lund and Norrköping in Sweden, Tampere in Finland, Poznań in Poland), their 12 lines, production orders and line downtime. 4 tables, 2,302 rows, January 2025 to September 2026. The CSV
   files ship in [`01_data/`](01_data/).
-* **What you build:** catalog `genie_manufacturing_<short name>`, a bronze/silver/gold pipeline, 1
+* **What you build:** in your existing catalog, the schemas `manufacturing*`, a bronze/silver/gold pipeline, 1
   metric view(s), one row filter on `plant_code`, the Fjällmark Manufacturing Analyst with 5 benchmarks, the `Manufacturing` domain tags and
   3 Pages.
 
@@ -21,13 +21,17 @@ Overview of all three samples: [`../README.md`](../README.md). Running it as a w
 | this repository as a **Git folder** in your workspace | the notebooks find the data, SQL and templates next to themselves |
 | **Serverless** compute for notebooks, jobs and pipelines | every step runs on serverless |
 | **CAN USE** on a SQL warehouse | the Genie Agent runs its SQL there |
-| your own catalog, or the right to create it | your sandbox |
-| the governed tag **Manufacturing** and `ASSIGN` on it | step 5 only; the instructor's [`00_instructor_setup.py`](01_notebooks/00_instructor_setup.py) creates it |
+| **your own catalog**, already created for you (e.g. `labuser123_456`) | your sandbox; the notebooks never create a catalog |
+| the governed tag **Manufacturing** and `ASSIGN` on it | step 5 only, optional; the instructor's [`00_instructor_setup.py`](01_notebooks/00_instructor_setup.py) creates it. **Participants never run notebook 00** (it needs admin rights) |
 | a GitHub account | step 5: the GitHub MCP signs in with *your* account |
 
 **Your short user name** is the part of your login before `@`, lower case, every character that is not a letter or
-digit replaced by `_`: `jane.doe@example.com` → `jane_doe` → catalog `genie_manufacturing_jane_doe`. Every notebook and the
-bundle compute it the same way.
+digit replaced by `_`: `labuser123_456@vocareum.com` → catalog `labuser123_456`. Every notebook and the bundle use
+it as the default catalog; if yours is named differently, type it into each notebook's `catalog` widget and deploy the
+bundle with `--var catalog=<name>`.
+
+The sample only creates schemas that start with its name - `manufacturing` (gold), `manufacturing_landing`, `manufacturing_bronze`,
+`manufacturing_silver` and `manufacturing_governance` - so all three samples can share your catalog.
 
 **Add the Git folder:** Workspace → your home folder → **Create → Git folder** → URL
 `https://github.com/dediggibyte/genie_bootcamp_diggibyte` → **Create Git folder**. A private repository
@@ -48,8 +52,8 @@ needs a Git credential first (user icon → Settings → Linked accounts).
 
 ```mermaid
 flowchart LR
-    CSV["01_data/<br/>4 CSV files"] -->|"notebook 01"| VOL["landing.raw_files"]
-    VOL -->|"job genie_manufacturing_job"| BR["bronze"] --> SI["silver"] --> GO["gold: manufacturing<br/>4 tables"]
+    CSV["01_data/<br/>4 CSV files"] -->|"notebook 01"| VOL["manufacturing_landing.raw_files"]
+    VOL -->|"job genie_manufacturing_job"| BR["manufacturing_bronze"] --> SI["manufacturing_silver"] --> GO["gold: manufacturing<br/>4 tables"]
     GO --> MV["metric views"]
     GOV["notebook 03<br/>row filter on plant_code"] -.-> GO
     GO --> AG["Fjällmark Manufacturing Analyst<br/>notebook 04"]
@@ -62,13 +66,13 @@ flowchart LR
 ## Step 1: Set up your catalog
 
 Open [`01_notebooks/01_setup_catalog.py`](01_notebooks/01_setup_catalog.py) in your Git folder, attach **Serverless**
-and click **Run all**. It creates the catalog (or reuses it), the schemas `landing`, `bronze`, `silver`, `manufacturing`
-and `governance`, the volume `landing.raw_files`, and copies the 4 CSV files into it.
+and click **Run all**. It checks that your catalog exists (it never creates one), creates the schemas `manufacturing`,
+`manufacturing_landing`, `manufacturing_bronze`, `manufacturing_silver` and `manufacturing_governance`, the volume
+`manufacturing_landing.raw_files`, and copies the 4 CSV files into it.
 
 | widget | default | meaning |
 |---|---|---|
-| `catalog` | blank = `genie_manufacturing_<short name>` | the catalog for everything in this sample |
-| `managed_location` | blank | storage path for a *new* catalog, only if your metastore needs one |
+| `catalog` | blank = `<your short user name>` | your existing catalog |
 | `overwrite` | `false` | repairs only |
 
 ---
@@ -98,7 +102,7 @@ Right now everyone who can read your gold tables sees every plant. Open
 [`01_notebooks/03_governance.py`](01_notebooks/03_governance.py), keep the defaults and click **Run all**.
 
 The notebook takes **your user id** (`current_user()`), writes it with the plants you may see into the
-mapping table `governance.user_plant_access`, and attaches **one row filter**, `governance.plant_filter`, to the
+mapping table `manufacturing_governance.user_plant_access`, and attaches **one row filter**, `manufacturing_governance.plant_filter`, to the
 `plant_code` column of `manufacturing.production_order`, `manufacturing.downtime_event`. Nothing else is filtered or masked.
 
 | widget | default | meaning |
@@ -171,7 +175,8 @@ Pages: Plant, Yield, Downtime ([`05_context/pages/`](05_context/pages/), index [
 | symptom | fix |
 |---|---|
 | Notebook 01: "databricks.yml not found" | open the notebook from the Git folder |
-| Notebook 01: the catalog cannot be created | create it in Catalog → **+** → Create a catalog, or set `managed_location` |
+| Notebook 01: "Catalog ... not found" | find your catalog in Catalog → *My organization* and type its name into the `catalog` widget (and `--var catalog=<name>` for the bundle) |
+| Notebook 01: no permission to create a schema | ask the instructor for `USE CATALOG` and `CREATE SCHEMA` on your catalog |
 | Pipeline "FAILED unexpectedly" on the first run | expected once; the retry registers the keys. Never use *Full refresh* |
 | `validate` fails on foreign keys or row counts | run the job again; it loads nothing twice |
 | Notebook 03 or 04: tables missing | wait until `genie_manufacturing_job` is green |
@@ -182,9 +187,10 @@ Pages: Plant, Yield, Downtime ([`05_context/pages/`](05_context/pages/), index [
 
 ## Cleanup
 
-1. Run [`01_notebooks/99_cleanup.py`](01_notebooks/99_cleanup.py) once: it lists what it would delete.
-2. Type your catalog name into `confirm` and **Run all** again (agent to the trash, row filter, catalog).
-3. Destroy the bundle: Deployments → **Destroy**, or `databricks bundle destroy -t dev` from this folder.
+1. Destroy the bundle: Deployments → **Destroy**, or `databricks bundle destroy -t dev` from this folder.
+2. Run [`01_notebooks/99_cleanup.py`](01_notebooks/99_cleanup.py) once: it lists what it would delete.
+3. Type your catalog name into `confirm` and **Run all** again: your agent goes to the trash and this sample's five
+   schemas are dropped. **Your catalog and the other samples' schemas are kept.**
 
 Account-level objects (the domain, governed tags, published Pages) are never touched.
 

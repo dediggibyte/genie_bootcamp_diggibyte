@@ -44,7 +44,7 @@ def bundle_root() -> str:
 
 
 user_name = spark.sql("SELECT current_user()").first()[0]
-catalog = dbutils.widgets.get("catalog").strip() or f"genie_{SAMPLE}_{bundle_short_name(user_name)}"
+catalog = dbutils.widgets.get("catalog").strip() or bundle_short_name(user_name)
 BUNDLE_ROOT = bundle_root()
 print(f"Catalog: {catalog}")
 

@@ -11,13 +11,14 @@
 # MAGIC | what | safeguard |
 # MAGIC |---|---|
 # MAGIC | your Genie Agent (to the trash, restorable for 30 days) | title `Fjällmark Consumer Analyst (<catalog>)`, in **your** home folder |
-# MAGIC | row filters and column masks | only in **this** catalog, and only if you own it |
-# MAGIC | the catalog (`DROP CATALOG ... CASCADE`) | only if you own it |
+# MAGIC | this sample's schemas `consumer`, `consumer_landing`, `consumer_bronze`, `consumer_silver`, `consumer_governance` (`DROP SCHEMA ... CASCADE`: tables, metric views, volume, row filter) | only these five; **your catalog is kept**, and so are the other samples' schemas |
 # MAGIC | the bundle's job and pipeline | `bundle destroy` - see the last cell |
 # MAGIC
 # MAGIC Account-level objects (domains, governed tags, published Pages) are never touched.
 # MAGIC
 # MAGIC ▶ **Run all** once: it only lists what it would delete. Then type your catalog name into `confirm` and run again.
+# MAGIC
+# MAGIC Remove the job and the pipeline (last cell) **first**: a running pipeline would recreate its tables.
 
 # COMMAND ----------
 
@@ -29,7 +30,6 @@ from databricks.sdk import WorkspaceClient
 SAMPLE = "consumer"
 dbutils.widgets.text("catalog", "", "1 Catalog (blank = automatic)")
 dbutils.widgets.text("confirm", "", "2 Type the catalog name to confirm")
-dbutils.widgets.dropdown("drop_catalog", "true", ["true", "false"], "3 Drop the catalog")
 
 
 def bundle_short_name(user_name: str) -> str:
@@ -40,26 +40,18 @@ def bundle_short_name(user_name: str) -> str:
 
 w = WorkspaceClient()
 me = spark.sql("SELECT current_user()").first()[0]
-CAT = dbutils.widgets.get("catalog").strip() or f"genie_{SAMPLE}_{bundle_short_name(me)}"
+CAT = dbutils.widgets.get("catalog").strip() or bundle_short_name(me)
 Q = f"`{CAT}`"
+SCHEMAS = [SAMPLE] + [f"{SAMPLE}_{s}" for s in ("landing", "bronze", "silver", "governance")]
 CONFIRMED = dbutils.widgets.get("confirm").strip() == CAT
 AGENT_TITLE = f"Fjällmark Consumer Analyst ({CAT})"
 print(f"Catalog: {CAT}\nMode   : {'DELETE' if CONFIRMED else 'DRY RUN (type the catalog name into confirm to delete)'}")
 
 # COMMAND ----------
 
-try:
-    owner = w.catalogs.get(CAT).owner
-    exists = True
-except Exception:
-    owner, exists = None, False
-mine = exists and (owner or "").lower() == me.lower()
-filters, masks = [], []
-if exists:
-    filters = [(r.table_schema, r.table_name) for r in spark.sql(
-        f"SELECT table_schema, table_name FROM {Q}.information_schema.row_filters").collect()]
-    masks = [(r.table_schema, r.table_name, r.column_name) for r in spark.sql(
-        f"SELECT table_schema, table_name, column_name FROM {Q}.information_schema.column_masks").collect()]
+existing = {r.schema_name for r in spark.sql(
+    "SELECT schema_name FROM system.information_schema.schemata WHERE catalog_name = :c", {"c": CAT}).collect()}
+present = [s for s in SCHEMAS if s in existing]   # gold first: its row filter uses the governance function
 agents, token = [], None
 while True:
     resp = w.api_client.do("GET", "/api/2.0/genie/spaces", query={"page_size": 100, **({"page_token": token} if token else {})})
@@ -71,12 +63,9 @@ while True:
     token = resp.get("next_page_token")
     if not token:
         break
-print(f"catalog exists: {exists} (owner {owner}), row filters: {len(filters)}, column masks: {len(masks)}, agents: {agents}")
-if exists and not mine:
-    print("You do not own this catalog - its policies and data are left alone.")
+print(f"schemas to drop: {present or 'none'}\nagents to trash: {agents or 'none'}")
 if not CONFIRMED:
-    dbutils.notebook.exit(json.dumps({"mode": "dry_run", "catalog": CAT, "agents": agents,
-                                      "row_filters": len(filters), "column_masks": len(masks)}))
+    dbutils.notebook.exit(json.dumps({"mode": "dry_run", "catalog": CAT, "schemas": present, "agents": agents}))
 
 # COMMAND ----------
 
@@ -84,22 +73,9 @@ for space_id in agents:
     w.api_client.do("DELETE", f"/api/2.0/genie/spaces/{space_id}")
     print(f"trashed agent {space_id}")
 
-
-def alter(schema: str, table: str) -> str:
-    kind = spark.sql(f"SELECT table_type FROM {Q}.information_schema.tables WHERE table_schema = :s AND table_name = :t",
-                     {"s": schema, "t": table}).first()[0]
-    return f"ALTER {'MATERIALIZED VIEW' if kind == 'MATERIALIZED_VIEW' else 'TABLE'} {Q}.`{schema}`.`{table}`"
-
-
-if mine:
-    for schema, table in filters:
-        spark.sql(f"{alter(schema, table)} DROP ROW FILTER")
-    for schema, table, column in masks:
-        spark.sql(f"{alter(schema, table)} ALTER COLUMN `{column}` DROP MASK")
-    print(f"removed {len(filters)} row filter(s) and {len(masks)} column mask(s)")
-    if dbutils.widgets.get("drop_catalog") == "true":
-        spark.sql(f"DROP CATALOG IF EXISTS {Q} CASCADE")
-        print(f"dropped catalog {CAT}")
+for schema in present:
+    spark.sql(f"DROP SCHEMA IF EXISTS {Q}.`{schema}` CASCADE")
+    print(f"dropped schema {CAT}.{schema}")
 
 # COMMAND ----------
 
@@ -112,5 +88,4 @@ if mine:
 
 # COMMAND ----------
 
-left = spark.sql("SELECT count(*) FROM system.information_schema.catalogs WHERE catalog_name = :c", {"c": CAT}).first()[0]
-dbutils.notebook.exit(json.dumps({"mode": "deleted", "catalog": CAT, "agents_trashed": agents, "catalog_left": left > 0}))
+dbutils.notebook.exit(json.dumps({"mode": "deleted", "catalog": CAT, "schemas_dropped": present, "agents_trashed": agents}))

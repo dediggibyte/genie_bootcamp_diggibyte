@@ -85,7 +85,7 @@ def front_matter(path: str) -> dict:
 w = WorkspaceClient()
 host = w.config.host.rstrip("/")
 user_name = spark.sql("SELECT current_user()").first()[0]
-catalog = dbutils.widgets.get("catalog").strip() or f"genie_{SAMPLE}_{bundle_short_name(user_name)}"
+catalog = dbutils.widgets.get("catalog").strip() or bundle_short_name(user_name)
 action = dbutils.widgets.get("action")
 prefix = dbutils.widgets.get("tag_prefix")
 BUNDLE_ROOT = bundle_root()

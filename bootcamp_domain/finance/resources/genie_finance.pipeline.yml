@@ -4,7 +4,7 @@ resources:
     genie_finance_pipeline:
       name: genie_finance_pipeline (${var.catalog})
       catalog: ${var.catalog}
-      schema: bronze            # default schema; every dataset uses a fully qualified name
+      schema: finance_bronze   # default schema; every dataset uses a fully qualified name
       serverless: true
       channel: CURRENT
       continuous: false

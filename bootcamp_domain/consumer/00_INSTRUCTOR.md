@@ -10,7 +10,7 @@ For instructors who run the [Consumer sample](README.md) as a workshop. The inst
 | governed tags, the domain **Consumer** with its sub-domains `Consumer/Customer Identity` and `Consumer/Direct Sales` (published), `ASSIGN` for the participants group | [`01_notebooks/00_instructor_setup.py`](01_notebooks/00_instructor_setup.py) | you |
 | account groups `cpg_bootcamp_participants` (participants) and `cpg_bootcamp_admins` (instructors, bypass policies) | your IdP or account console | account admin |
 | **CAN USE** on a serverless SQL warehouse for every participant | the warehouse's *Permissions* | workspace admin |
-| catalogs `genie_consumer_<short name>`, or `CREATE CATALOG` for participants | participants create them in notebook 01 | metastore admin |
+| one catalog per participant, named after the user (e.g. `labuser123_456`), with `USE CATALOG` and `CREATE SCHEMA` for its user - participants never create catalogs | your lab provisioning | metastore admin |
 | serverless compute; the repository as a Git folder (public, or a Git credential per user) | workspace settings | workspace admin |
 | previews *Discover*, *tags on Genie Agents*, *MCP tools in Genie Agents* | Admin settings → Previews | workspace admin |
 | one rehearsal of steps 1-5 as a **non-admin** participant | [README](README.md) | you |
@@ -50,7 +50,8 @@ sub-domains are added under it.
 
 ## 4. After the workshop
 
-1. Participants run `01_notebooks/99_cleanup.py` (dropping a catalog removes its tags).
+1. Participants destroy their bundle and run `01_notebooks/99_cleanup.py` (it drops the sample's schemas, which
+   removes their tags; the catalog itself stays).
 2. Run `00_instructor_setup.py` with `mode = teardown_domain` (first run = dry run), then with
    `confirm_teardown = teardown_domain`. It deletes only the tags and domains it created (marker
    `[created by genie_bootcamp_diggibyte/bootcamp_domain/consumer/00_instructor_setup]`).

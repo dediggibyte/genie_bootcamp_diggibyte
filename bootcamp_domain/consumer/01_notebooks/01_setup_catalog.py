@@ -6,22 +6,24 @@
 # MAGIC %md
 # MAGIC # 01 · Set up your catalog and land the raw data
 # MAGIC
-# MAGIC **Genie domain sample Consumer (simplified).** Every participant gets their own Unity Catalog *catalog*. This
-# MAGIC notebook prepares what the pipeline in step 2 needs:
+# MAGIC **Genie domain sample Consumer (simplified).** Every participant already has their own Unity Catalog *catalog*,
+# MAGIC named after their user (e.g. `labuser123_456` for `labuser123_456@vocareum.com`). This notebook does **not**
+# MAGIC create a catalog; it prepares what the pipeline in step 2 needs inside yours:
 # MAGIC
 # MAGIC | step | what |
 # MAGIC |---|---|
-# MAGIC | 1 | work out **your catalog name** `genie_consumer_<your short user name>` (the bundle uses the same default) |
+# MAGIC | 1 | work out **your catalog name** = your short user name (the bundle uses the same default) |
 # MAGIC | 2 | find the sample folder and its CSV files (`01_data/`, 4 small tables) |
-# MAGIC | 3 | create (or reuse) the **catalog** |
-# MAGIC | 4 | create the **schemas** `landing`, `bronze`, `silver`, `consumer` (gold) and `governance` |
-# MAGIC | 5 | create the **volume** `landing.raw_files` |
+# MAGIC | 3 | check that **your catalog** exists (it is never created here) |
+# MAGIC | 4 | create the **schemas** `consumer_landing`, `consumer_bronze`, `consumer_silver`, `consumer` (gold) and `consumer_governance` |
+# MAGIC | 5 | create the **volume** `consumer_landing.raw_files` |
 # MAGIC | 6 | **copy the CSV files** into the volume, one folder per table |
 # MAGIC | 7 | **verify** the files against `01_data/manifest.json` |
 # MAGIC
 # MAGIC ▶ **How to run:** open this notebook in your **Git folder**, attach **Serverless** and click **Run all**.
 # MAGIC
-# MAGIC 🔁 **Safe to re-run:** existing catalog, schemas, volume and files are kept; nothing is copied twice.
+# MAGIC 🔁 **Safe to re-run:** existing schemas, volume and files are kept; nothing is copied twice. Every schema starts
+# MAGIC with the sample name, so the Finance, Consumer and Manufacturing samples can share your catalog.
 
 # COMMAND ----------
 
@@ -30,8 +32,7 @@
 # MAGIC
 # MAGIC | widget | default | meaning |
 # MAGIC |---|---|---|
-# MAGIC | `catalog` | blank = `genie_consumer_<your short user name>` | the catalog for everything in this sample |
-# MAGIC | `managed_location` | blank | storage path for a *new* catalog, only if your metastore needs one |
+# MAGIC | `catalog` | blank = `<your short user name>` | your catalog (already created for you) |
 # MAGIC | `overwrite` | `false` | `true` copies the CSV files again (repairs only, before the first pipeline run) |
 
 # COMMAND ----------
@@ -43,7 +44,6 @@ import shutil
 import unicodedata
 
 dbutils.widgets.text("catalog", "", "Catalog (blank = automatic)")
-dbutils.widgets.text("managed_location", "", "Managed location (optional)")
 dbutils.widgets.dropdown("overwrite", "false", ["false", "true"], "Overwrite CSV files")
 
 SAMPLE = "consumer"   # also the name of the gold schema
@@ -58,13 +58,12 @@ def bundle_short_name(user_name: str) -> str:
 
 
 user_name = spark.sql("SELECT current_user()").first()[0]
-catalog = dbutils.widgets.get("catalog").strip() or f"genie_{SAMPLE}_{bundle_short_name(user_name)}"
+catalog = dbutils.widgets.get("catalog").strip() or bundle_short_name(user_name)
 if not re.fullmatch(r"[A-Za-z0-9_]+", catalog):
     # The pipeline SQL uses the catalog name without back-quotes: ASCII letters, digits and '_' only.
-    raise ValueError(f"Catalog name {catalog!r} may only contain ASCII letters, digits and '_'. Type a name such as "
-                     f"'genie_{SAMPLE}_bjorn' into the 'catalog' widget and deploy the bundle with the same name "
+    raise ValueError(f"Catalog name {catalog!r} may only contain ASCII letters, digits and '_'. Type your catalog "
+                     f"into the 'catalog' widget and deploy the bundle with the same name "
                      f"(--var catalog=<name>, or variables.catalog.default in databricks.yml).")
-managed_location = dbutils.widgets.get("managed_location").strip()
 overwrite = dbutils.widgets.get("overwrite") == "true"
 
 print(f"You are : {user_name}")
@@ -104,10 +103,10 @@ print(f"Tables        : {', '.join(manifest)} ({sum(m['rows'] for m in manifest.
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 3 · Create (or reuse) your catalog
+# MAGIC ## 3 · Check your catalog
 # MAGIC
-# MAGIC An existing catalog is reused. If `CREATE CATALOG` is not allowed with SQL on your workspace (metastores with
-# MAGIC *Default Storage* need a managed location), the notebook stops and tells you how to create it in the UI.
+# MAGIC Your catalog was created for you before the workshop - this notebook never creates one. If it is not found,
+# MAGIC look up its name in **Catalog** (under *My organization*), type it into the `catalog` widget and run again.
 
 # COMMAND ----------
 
@@ -116,23 +115,10 @@ def sql_str(text: str) -> str:
     return "'" + text.replace("\\", "\\\\").replace("'", "\\'") + "'"
 
 
-if spark.sql(f"SHOW CATALOGS LIKE {sql_str(catalog)}").count() > 0:
-    print(f"✅ Catalog `{catalog}` already exists - reusing it.")
-else:
-    stmt = f"CREATE CATALOG IF NOT EXISTS `{catalog}`"
-    if managed_location:
-        stmt += f" MANAGED LOCATION {sql_str(managed_location)}"
-    stmt += f" COMMENT {sql_str('Genie domain sample Consumer (simplified) of ' + user_name)}"
-    try:
-        spark.sql(stmt)
-        print(f"✅ Catalog `{catalog}` created.")
-    except Exception as e:
-        print(f"""
-The catalog `{catalog}` could not be created with SQL on this workspace. Create it in the UI, then run again:
-  Catalog -> "+" -> Create a catalog -> name {catalog}, type Standard, default storage -> Create.
-Or ask your instructor for a managed storage location and enter it in the `managed_location` widget.
-""")
-        raise RuntimeError(f"Create the catalog `{catalog}` first: {str(e).splitlines()[0]}") from None
+if spark.sql(f"SHOW CATALOGS LIKE {sql_str(catalog)}").count() == 0:
+    raise RuntimeError(f"Catalog `{catalog}` not found. Type the name of your catalog (Catalog -> My organization) "
+                       f"into the 'catalog' widget, run again, and deploy the bundle with --var catalog=<name>.")
+print(f"✅ Catalog `{catalog}` found.")
 
 # COMMAND ----------
 
@@ -141,24 +127,24 @@ Or ask your instructor for a managed storage location and enter it in the `manag
 # MAGIC
 # MAGIC | schema | holds |
 # MAGIC |---|---|
-# MAGIC | `landing` | the volume `raw_files` with the CSV files |
-# MAGIC | `bronze` | raw rows, every column a string (`bronze.<table>`) |
-# MAGIC | `silver` | typed and de-duplicated rows (`silver.<table>`) |
+# MAGIC | `consumer_landing` | the volume `raw_files` with the CSV files |
+# MAGIC | `consumer_bronze` | raw rows, every column a string |
+# MAGIC | `consumer_silver` | typed and de-duplicated rows |
 # MAGIC | `consumer` | **gold**: the tables Genie and the business query, plus the metric views |
-# MAGIC | `governance` | the mapping table and the row-filter function (notebook 03) |
+# MAGIC | `consumer_governance` | the mapping table and the row-filter function (notebook 03) |
 
 # COMMAND ----------
 
 SCHEMAS = {
-    "landing": "Landing zone: volume raw_files holds the CSV files (one folder per table).",
-    "bronze": "Bronze: raw rows exactly as delivered, every column STRING. Written by genie_consumer_pipeline.",
-    "silver": "Silver: typed, cleaned and de-duplicated rows. Written by genie_consumer_pipeline.",
+    f"{SAMPLE}_landing": "Landing zone: volume raw_files holds the CSV files (one folder per table).",
+    f"{SAMPLE}_bronze": "Bronze: raw rows exactly as delivered, every column STRING. Written by genie_consumer_pipeline.",
+    f"{SAMPLE}_silver": "Silver: typed, cleaned and de-duplicated rows. Written by genie_consumer_pipeline.",
     SAMPLE: "Consumer (gold): webshop products, shoppers, orders and order lines of Fjällmark Consumer Goods AB, amounts in EUR. Simplified domain sample.",
-    "governance": "Governance: the access-mapping table and the row-filter function (notebook 03).",
+    f"{SAMPLE}_governance": "Governance: the access-mapping table and the row-filter function (notebook 03).",
 }
 for schema, comment in SCHEMAS.items():
     spark.sql(f"CREATE SCHEMA IF NOT EXISTS `{catalog}`.`{schema}` COMMENT {sql_str(comment)}")
-display(spark.sql(f"SHOW SCHEMAS IN `{catalog}`"))
+display(spark.sql(f"SHOW SCHEMAS IN `{catalog}` LIKE '{SAMPLE}*'"))
 
 # COMMAND ----------
 
@@ -167,9 +153,9 @@ display(spark.sql(f"SHOW SCHEMAS IN `{catalog}`"))
 
 # COMMAND ----------
 
-spark.sql(f"CREATE VOLUME IF NOT EXISTS `{catalog}`.`landing`.`raw_files` "
+spark.sql(f"CREATE VOLUME IF NOT EXISTS `{catalog}`.`{SAMPLE}_landing`.`raw_files` "
           f"COMMENT 'CSV files of the Fjällmark consumer sample: <table>/<table>.csv'")
-VOLUME_ROOT = f"/Volumes/{catalog}/landing/raw_files"
+VOLUME_ROOT = f"/Volumes/{catalog}/{SAMPLE}_landing/raw_files"
 print(f"✅ Volume ready: {VOLUME_ROOT}")
 
 # COMMAND ----------

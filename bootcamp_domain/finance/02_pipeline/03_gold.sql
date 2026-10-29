@@ -30,7 +30,7 @@ AS SELECT
   currency_code,
   eur_rate,
   is_parent
-FROM ${catalog}.silver.company_code;
+FROM ${catalog}.finance_silver.company_code;
 
 CREATE OR REFRESH MATERIALIZED VIEW ${catalog}.finance.gl_account (
   gl_account_code STRING NOT NULL COMMENT 'GL account number, e.g. 3010.',
@@ -43,7 +43,7 @@ AS SELECT
   gl_account_code,
   account_name,
   account_group
-FROM ${catalog}.silver.gl_account;
+FROM ${catalog}.finance_silver.gl_account;
 
 CREATE OR REFRESH MATERIALIZED VIEW ${catalog}.finance.journal_entry_line (
   journal_entry_line_id BIGINT NOT NULL COMMENT 'Unique id of the GL line.',
@@ -74,7 +74,7 @@ AS SELECT
   currency_code,
   amount_local,
   amount_eur
-FROM ${catalog}.silver.journal_entry_line
+FROM ${catalog}.finance_silver.journal_entry_line
 -- Build order only - never filters a row.
 WHERE TRUE
    OR EXISTS (SELECT 1 FROM ${catalog}.finance.company_code)
@@ -114,7 +114,7 @@ AS SELECT
   outstanding_amount_local,
   outstanding_amount_eur,
   invoice_status
-FROM ${catalog}.silver.ar_invoice
+FROM ${catalog}.finance_silver.ar_invoice
 -- Build order only - never filters a row.
 WHERE TRUE
    OR EXISTS (SELECT 1 FROM ${catalog}.finance.company_code);

@@ -42,7 +42,7 @@
 # MAGIC
 # MAGIC | widget | default | meaning |
 # MAGIC |---|---|---|
-# MAGIC | `catalog` | blank = `genie_consumer_<short name>` | your catalog |
+# MAGIC | `catalog` | blank = `<your short user name>` | your catalog (already created for you) |
 # MAGIC | `warehouse` | blank = first serverless warehouse you can use | SQL warehouse id or name |
 # MAGIC | `ask_test_question` / `run_benchmarks` | `true` | steps 5 and 6 on / off |
 # MAGIC | `force_update` | `false` | `true` overwrites the agent with the template (discards UI edits) |
@@ -91,7 +91,7 @@ def bundle_root() -> str:
 w = WorkspaceClient()
 host = w.config.host.rstrip("/")
 user_name = w.current_user.me().user_name
-catalog = dbutils.widgets.get("catalog").strip() or f"genie_{SAMPLE}_{bundle_short_name(user_name)}"
+catalog = dbutils.widgets.get("catalog").strip() or bundle_short_name(user_name)
 BUNDLE_ROOT = bundle_root()
 
 
@@ -290,7 +290,7 @@ if dbutils.widgets.get("run_benchmarks") == "true":
 # MAGIC ## 7 · Share it - and give it the glossary (UI)
 # MAGIC
 # MAGIC **Share:** open the agent → **Share** → a user or group → **Can run**. The viewer also needs `CAN USE` on the
-# MAGIC warehouse and `SELECT` on the gold schema `consumer` (never on bronze or silver). Their answers respect
+# MAGIC warehouse and `SELECT` on the gold schema `consumer` (never on `consumer_bronze` or `consumer_silver`). Their answers respect
 # MAGIC **their** row filter - you configured security once, in Unity Catalog.
 # MAGIC
 # MAGIC **GitHub MCP (Agent mode):** the definitions behind the instructions are the Pages in

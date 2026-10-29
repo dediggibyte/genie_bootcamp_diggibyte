@@ -4,7 +4,7 @@
 --   * one row per primary key (the latest ingested row wins), rows without a key are dropped
 -- ================================================================================================
 
-CREATE OR REFRESH MATERIALIZED VIEW ${catalog}.silver.company_code (
+CREATE OR REFRESH MATERIALIZED VIEW ${catalog}.finance_silver.company_code (
   CONSTRAINT company_code_not_null EXPECT (company_code IS NOT NULL) ON VIOLATION DROP ROW
 )
 COMMENT 'Silver: finance.company_code typed and de-duplicated, one row per company_code.'
@@ -18,13 +18,13 @@ WITH typed AS (
     TRY_CAST(NULLIF(trim(eur_rate), '') AS DECIMAL(10,4)) AS eur_rate,
     TRY_CAST(NULLIF(trim(is_parent), '') AS BOOLEAN) AS is_parent,
     _ingested_at
-  FROM ${catalog}.bronze.company_code
+  FROM ${catalog}.finance_bronze.company_code
 )
 SELECT * EXCEPT (_ingested_at)
 FROM typed
 QUALIFY ROW_NUMBER() OVER (PARTITION BY company_code ORDER BY _ingested_at DESC) = 1;
 
-CREATE OR REFRESH MATERIALIZED VIEW ${catalog}.silver.gl_account (
+CREATE OR REFRESH MATERIALIZED VIEW ${catalog}.finance_silver.gl_account (
   CONSTRAINT gl_account_code_not_null EXPECT (gl_account_code IS NOT NULL) ON VIOLATION DROP ROW
 )
 COMMENT 'Silver: finance.gl_account typed and de-duplicated, one row per gl_account_code.'
@@ -35,13 +35,13 @@ WITH typed AS (
     NULLIF(trim(account_name), '') AS account_name,
     NULLIF(trim(account_group), '') AS account_group,
     _ingested_at
-  FROM ${catalog}.bronze.gl_account
+  FROM ${catalog}.finance_bronze.gl_account
 )
 SELECT * EXCEPT (_ingested_at)
 FROM typed
 QUALIFY ROW_NUMBER() OVER (PARTITION BY gl_account_code ORDER BY _ingested_at DESC) = 1;
 
-CREATE OR REFRESH MATERIALIZED VIEW ${catalog}.silver.journal_entry_line (
+CREATE OR REFRESH MATERIALIZED VIEW ${catalog}.finance_silver.journal_entry_line (
   CONSTRAINT journal_entry_line_id_not_null EXPECT (journal_entry_line_id IS NOT NULL) ON VIOLATION DROP ROW
 )
 COMMENT 'Silver: finance.journal_entry_line typed and de-duplicated, one row per journal_entry_line_id.'
@@ -60,13 +60,13 @@ WITH typed AS (
     TRY_CAST(NULLIF(trim(amount_local), '') AS DECIMAL(18,2)) AS amount_local,
     TRY_CAST(NULLIF(trim(amount_eur), '') AS DECIMAL(18,2)) AS amount_eur,
     _ingested_at
-  FROM ${catalog}.bronze.journal_entry_line
+  FROM ${catalog}.finance_bronze.journal_entry_line
 )
 SELECT * EXCEPT (_ingested_at)
 FROM typed
 QUALIFY ROW_NUMBER() OVER (PARTITION BY journal_entry_line_id ORDER BY _ingested_at DESC) = 1;
 
-CREATE OR REFRESH MATERIALIZED VIEW ${catalog}.silver.ar_invoice (
+CREATE OR REFRESH MATERIALIZED VIEW ${catalog}.finance_silver.ar_invoice (
   CONSTRAINT ar_invoice_id_not_null EXPECT (ar_invoice_id IS NOT NULL) ON VIOLATION DROP ROW
 )
 COMMENT 'Silver: finance.ar_invoice typed and de-duplicated, one row per ar_invoice_id.'
@@ -88,7 +88,7 @@ WITH typed AS (
     TRY_CAST(NULLIF(trim(outstanding_amount_eur), '') AS DECIMAL(18,2)) AS outstanding_amount_eur,
     NULLIF(trim(invoice_status), '') AS invoice_status,
     _ingested_at
-  FROM ${catalog}.bronze.ar_invoice
+  FROM ${catalog}.finance_bronze.ar_invoice
 )
 SELECT * EXCEPT (_ingested_at)
 FROM typed
